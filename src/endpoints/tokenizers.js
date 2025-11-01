@@ -58,7 +58,6 @@ export const TEXT_COMPLETION_MODELS = [
 ];
 
 const CHARS_PER_TOKEN = 3.35;
-const IS_DOWNLOAD_ALLOWED = getConfigValue('enableDownloadableTokenizers', true, 'boolean');
 const gunzip = promisify(zlib.gunzip);
 
 /**
@@ -111,7 +110,7 @@ async function getPathToTokenizer(model, fallbackModel) {
             return cachedFile;
         }
 
-        if (!IS_DOWNLOAD_ALLOWED) {
+        if (!getConfigValue('enableDownloadableTokenizers', true, 'boolean')) {
             throw new Error('Downloading tokenizers is disabled, the model is not cached');
         }
 

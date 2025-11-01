@@ -18,12 +18,26 @@ import {
     formatBytes,
 } from '../util.js';
 
-const isBackupEnabled = !!getConfigValue('backups.chat.enabled', true, 'boolean');
-const maxTotalChatBackups = Number(getConfigValue('backups.chat.maxTotalBackups', -1, 'number'));
-const throttleInterval = Number(getConfigValue('backups.chat.throttleInterval', 10_000, 'number'));
-const checkIntegrity = !!getConfigValue('backups.chat.checkIntegrity', true, 'boolean');
-
 export const CHAT_BACKUPS_PREFIX = 'chat_';
+
+/**
+ * Helper functions to get chat backup configuration values
+ */
+function isBackupEnabled() {
+    return !!getConfigValue('backups.chat.enabled', true, 'boolean');
+}
+
+function getMaxTotalChatBackups() {
+    return Number(getConfigValue('backups.chat.maxTotalBackups', -1, 'number'));
+}
+
+function getThrottleInterval() {
+    return Number(getConfigValue('backups.chat.throttleInterval', 10_000, 'number'));
+}
+
+function isCheckIntegrityEnabled() {
+    return !!getConfigValue('backups.chat.checkIntegrity', true, 'boolean');
+}
 
 /**
  * Saves a chat to the backups directory.
@@ -33,7 +47,7 @@ export const CHAT_BACKUPS_PREFIX = 'chat_';
  */
 function backupChat(directory, name, chat) {
     try {
-        if (!isBackupEnabled || !fs.existsSync(directory)) {
+        if (!isBackupEnabled() || !fs.existsSync(directory)) {
             return;
         }
 
@@ -45,6 +59,7 @@ function backupChat(directory, name, chat) {
 
         removeOldBackups(directory, `${CHAT_BACKUPS_PREFIX}${name}_`);
 
+        const maxTotalChatBackups = getMaxTotalChatBackups();
         if (isNaN(maxTotalChatBackups) || maxTotalChatBackups < 0) {
             return;
         }
@@ -67,7 +82,7 @@ const backupFunctions = new Map();
  */
 function getBackupFunction(handle) {
     if (!backupFunctions.has(handle)) {
-        backupFunctions.set(handle, _.throttle(backupChat, throttleInterval, { leading: true, trailing: true }));
+        backupFunctions.set(handle, _.throttle(backupChat, getThrottleInterval(), { leading: true, trailing: true }));
     }
     return backupFunctions.get(handle) || (() => { });
 }
@@ -433,7 +448,7 @@ router.post('/save', validateAvatarUrlMiddleware, async function (request, respo
         const jsonlData = chatData.map(JSON.stringify).join('\n');
         const fileName = `${String(request.body.file_name)}.jsonl`;
         const filePath = path.join(request.user.directories.chats, directoryName, sanitize(fileName));
-        if (checkIntegrity && !request.body.force) {
+        if (isCheckIntegrityEnabled() && !request.body.force) {
             const integritySlug = chatData?.[0]?.chat_metadata?.integrity;
             const isIntact = await checkChatIntegrity(filePath, integritySlug);
             if (!isIntact) {

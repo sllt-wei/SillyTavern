@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
 import { getConfigValue, tryParse } from './util.js';
 
-const PROMPT_PLACEHOLDER = getConfigValue('promptPlaceholder', 'Let\'s get started.');
+function getPromptPlaceholder() {
+    return getConfigValue('promptPlaceholder', 'Let\'s get started.');
+}
 
 const REASONING_EFFORT = {
     auto: 'auto',
@@ -217,7 +219,7 @@ export function convertClaudeMessages(messages, prefillString, useSysPrompt, use
         if (messages.length === 0) {
             messages.unshift({
                 role: 'user',
-                content: PROMPT_PLACEHOLDER,
+                content: getPromptPlaceholder(),
             });
         }
     }
@@ -893,10 +895,10 @@ export function mergeMessages(messages, names, { strict = false, placeholders = 
         }
         if (mergedMessages.length && placeholders) {
             if (mergedMessages[0].role === 'system' && (mergedMessages.length === 1 || mergedMessages[1].role !== 'user')) {
-                mergedMessages.splice(1, 0, { role: 'user', content: PROMPT_PLACEHOLDER });
+                mergedMessages.splice(1, 0, { role: 'user', content: getPromptPlaceholder() });
             }
             else if (mergedMessages[0].role !== 'system' && mergedMessages[0].role !== 'user') {
-                mergedMessages.unshift({ role: 'user', content: PROMPT_PLACEHOLDER });
+                mergedMessages.unshift({ role: 'user', content: getPromptPlaceholder() });
             }
         }
         return mergeMessages(mergedMessages, names, { strict: false, placeholders, single: false, tools });

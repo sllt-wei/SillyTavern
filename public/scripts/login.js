@@ -1,5 +1,3 @@
-import { initAccessibility } from './a11y.js';
-
 /**
  * CRSF token for requests.
  */
@@ -174,7 +172,11 @@ async function onUserSelected(user) {
  * @param {string} message Error message
  */
 function displayError(message) {
-    $('#errorMessage').text(message);
+    if (message && message.length > 0) {
+        $('#errorMessage').text(message).show();
+    } else {
+        $('#errorMessage').text('').hide();
+    }
 }
 
 /**
@@ -182,19 +184,17 @@ function displayError(message) {
  * Preserves the query string.
  */
 function redirectToHome() {
-    // Create a URL object based on the current location
-    const currentUrl = new URL(window.location.href);
+    // After a login theres no need to preserve the
+    // noauto (if present)
+    const urlParams = new URLSearchParams(window.location.search);
 
-    // After a login there's no need to preserve the
-    // noauto parameter (if present)
-    currentUrl.searchParams.delete('noauto');
+    urlParams.delete('noauto');
 
-    // Set the pathname to root and keep the updated query string
-    currentUrl.pathname = '/';
-
-    // Redirect to the new URL
-    window.location.href = currentUrl.toString();
+    // 重定向到角色卡展示页面
+    // window.location.href = '/character-showcase.html' + (urlParams.toString() ? '?' + urlParams.toString() : ''); //跳转角色卡库
+    window.location.href = '/' + urlParams.toString();
 }
+
 
 /**
  * Hides the password entry block and shows the password recovery block.
@@ -266,9 +266,24 @@ function configureDiscreetLogin() {
     });
 }
 
-(async function () {
-    initAccessibility();
+// 在文件顶部添加函数处理URL参数，检查是否有过期提示
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
 
+// 在加载时检查URL参数
+$(document).ready(function () {
+    // 检查是否有过期错误
+    const error = getUrlParameter('error');
+    if (error === 'expired') {
+        $('#errorMessage').text('您的账户已过期，请联系管理员。').show();
+    }
+});
+
+(async function () {
     csrfToken = await getCsrfToken();
     const userList = await getUserList();
 

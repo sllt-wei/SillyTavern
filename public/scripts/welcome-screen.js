@@ -537,26 +537,32 @@ export async function openPermanentAssistantChat({ tryCreate = true, created = f
     const avatar = getPermanentAssistantAvatar();
     const characterId = characters.findIndex(x => x.avatar === avatar);
     if (characterId === -1) {
-        if (!tryCreate) {
-            console.error(`Character not found for avatar ID: ${avatar}. Cannot create.`);
-            return;
-        }
-
-        try {
-            console.log(`Character not found for avatar ID: ${avatar}. Creating new assistant.`);
-            await createPermanentAssistant();
-            return openPermanentAssistantChat({ tryCreate: false, created: true });
-        }
-        catch (error) {
-            console.error('Error creating permanent assistant:', error);
-            toastr.error(t`Failed to create ${neutralCharacterName}. See console for details.`);
-            return;
-        }
+        // 禁用自动创建 Assistant 角色卡
+        console.warn(`Character not found for avatar ID: ${avatar}. Auto-creation disabled.`);
+        return;
+        
+        // 原自动创建代码已注释
+        // if (!tryCreate) {
+        //     console.error(`Character not found for avatar ID: ${avatar}. Cannot create.`);
+        //     return;
+        // }
+        //
+        // try {
+        //     console.log(`Character not found for avatar ID: ${avatar}. Creating new assistant.`);
+        //     await createPermanentAssistant();
+        //     return openPermanentAssistantChat({ tryCreate: false, created: true });
+        // }
+        // catch (error) {
+        //     console.error('Error creating permanent assistant:', error);
+        //     toastr.error(t`Failed to create ${neutralCharacterName}. See console for details.`);
+        //     return;
+        // }
     }
 
     try {
         await selectCharacterById(characterId);
-        if (!created) {
+        // 只有在没有现有聊天时才创建新聊天
+        if (!created && !characters[characterId].chat) {
             await doNewChat({ deleteCurrentChat: false });
         }
         console.log(`Opened permanent assistant chat for ${neutralCharacterName}.`, getCurrentChatId());

@@ -7,9 +7,6 @@ import { default as git, CheckRepoActions } from 'simple-git';
 import { sync as commandExistsSync } from 'command-exists';
 import { getConfigValue, color } from './util.js';
 
-const enableServerPlugins = !!getConfigValue('enableServerPlugins', false, 'boolean');
-const enableServerPluginsAutoUpdate = !!getConfigValue('enableServerPluginsAutoUpdate', true, 'boolean');
-
 /**
  * Map of loaded plugins.
  * @type {Map<string, any>}
@@ -41,6 +38,10 @@ export async function loadPlugins(app, pluginsPath) {
     try {
         const exitHooks = [];
         const emptyFn = () => { };
+
+        // Get config values inside the function to ensure config path is set
+        const enableServerPlugins = !!getConfigValue('enableServerPlugins', false, 'boolean');
+        const enableServerPluginsAutoUpdate = !!getConfigValue('enableServerPluginsAutoUpdate', true, 'boolean');
 
         // Server plugins are disabled.
         if (!enableServerPlugins) {
@@ -219,7 +220,13 @@ async function initPlugin(app, plugin, exitHooks) {
 
     // Add API routes to the app if the plugin registered any
     if (router.stack.length > 0) {
-        app.use(`/api/plugins/${id}`, router);
+        console.log(`插件 ${id} 注册了 ${router.stack.length} 个路由: ${router.stack.map(layer => layer.route?.path || '(middleware)').join(', ')}`);
+        const routePath = `/api/plugins/${id}`;
+        console.log(`将插件 ${id} 的路由挂载到: ${routePath}`);
+        app.use(routePath, router);
+        console.log(`插件 ${id} 的路由挂载完成`);
+    } else {
+        console.log(`插件 ${id} 没有注册任何路由`);
     }
 
     const exit = plugin.exit || plugin.default?.exit;
@@ -235,6 +242,8 @@ async function initPlugin(app, plugin, exitHooks) {
  * @param {string} pluginsPath Path to plugins directory
  */
 async function updatePlugins(pluginsPath) {
+    const enableServerPluginsAutoUpdate = !!getConfigValue('enableServerPluginsAutoUpdate', true, 'boolean');
+    
     if (!enableServerPluginsAutoUpdate) {
         return;
     }

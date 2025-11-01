@@ -2,89 +2,379 @@
 <html>
 
 <head>
+    <!-- 基础URL设置 -->
     <base href="/">
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, viewport-fit=cover, initial-scale=1, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="darkreader-lock">
-    <meta name="robots" content="noindex, nofollow" />
-    <style>
-        /* Put critical CSS here. The rest should go in stylesheets. */
-        body {
-            background-color: rgb(36, 36, 37);
-        }
-    </style>
-    <link rel="preload" as="style" href="style.css">
-    <link rel="apple-touch-icon" sizes="57x57" href="img/apple-icon-57x57.png" />
-    <link rel="apple-touch-icon" sizes="72x72" href="img/apple-icon-72x72.png" />
-    <link rel="apple-touch-icon" sizes="114x114" href="img/apple-icon-114x114.png" />
-    <link rel="apple-touch-icon" sizes="144x144" href="img/apple-icon-144x144.png" />
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <link rel="stylesheet" type="text/css" href="css/st-tailwind.css">
+    <!-- 响应式视口设置 -->
+    <meta name="viewport" content="width=device-width, viewport-fit=cover, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+    <title>登录 - SillyTavern</title>
+    <!-- 引入CSS样式文件 -->
     <link rel="stylesheet" type="text/css" href="css/login.css">
-    <link rel="manifest" crossorigin="use-credentials" href="manifest.json">
     <link href="webfonts/NotoSans/stylesheet.css" rel="stylesheet">
-    <link href="webfonts/NotoSansMono/stylesheet.css" rel="stylesheet">
-    <!-- fontawesome webfonts-->
     <link href="css/fontawesome.min.css" rel="stylesheet">
     <link href="css/solid.min.css" rel="stylesheet">
-    <link href="css/user.css" rel="stylesheet">
-    <title>SillyTavern</title>
+    <!-- 引入jQuery库 -->
+    <script src="lib/jquery-3.5.1.min.js"></script>
+    <script src="scripts/login.js"></script>
+    <style>
+        /* 登录页面主体样式 */
+        body.login {
+            background: url('img/531049.jpg') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Noto Sans', sans-serif;
+            overflow: hidden;  /* 防止主体出现滚动条 */
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 登录卡片样式 */
+        .login-card {
+            /* background-color: rgba(255, 255, 255, 0.1); */
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding-top: 40px;
+            padding-right: 30px;
+            padding-bottom: 40px;
+            padding-left: 30px;
+            width: 78%;
+            max-width: 420px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .login-form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .login-input {
+            width: 79%;
+            padding: 15px 15px 15px 50px;
+            border: none;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .login-input:focus {
+            background-color: rgba(255, 255, 255, 0.25);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+
+        .login-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 20px;
+            display: inline-block;
+            height: auto;
+        }
+
+        /* 调整密码锁图标的大小 */
+        .fa-lock.input-icon {
+            font-size: 18px;
+            line-height: 1;
+            height: auto;
+            padding: 0;
+            box-sizing: content-box;
+            overflow: visible;
+        }
+
+        /* 修复密码输入框的图标特定位置 */
+        #passwordEntryBlock .input-icon,
+        #passwordRecoveryBlock .input-icon {
+            height: auto;
+            top: 18px;
+            transform: none;
+        }
+
+        .login-button {
+            width: 50%;
+            padding: 15px;
+            background: linear-gradient(to right, #4a69dd, #6f8ef5);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            /* margin-bottom: 20px; */
+            text-transform: uppercase;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .login-button:hover {
+            background: linear-gradient(to right, #5a79ed, #7f9eff);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-links {
+            display: flex;
+            justify-content: center;
+            gap: 80px;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .login-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .login-link:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+
+        /* 错误信息样式 */
+        #errorMessage {
+            color: #ff5353;
+            margin-top: 15px;
+            font-size: 14px;
+            text-align: center;
+            padding: 10px;
+            background-color: rgba(212, 74, 74, 0.384);
+            border-radius: 8px;
+            display: none;
+        }
+
+        /* 用户列表样式 */
+        #userList {
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        .userSelect {
+            padding: 12px 15px;
+            margin: 5px 0;
+            cursor: pointer;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            color: white;
+        }
+
+        .userSelect:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* 密码恢复区域样式 */
+        #passwordRecoveryBlock {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        #recoverMessage {
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+        }
+
+        #recoveryButtons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .recovery-button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 48%;
+        }
+
+        #sendRecovery {
+            background: linear-gradient(to right, #4a69dd, #6f8ef5);
+        }
+
+        #cancelRecovery {
+            background: linear-gradient(to right, #777, #999);
+        }
+
+        .recovery-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 登录框容器样式 */
+        #shadow_popup {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
 </head>
 
 <body class="login">
-    <div id="shadow_popup" style="opacity: 0;">
-        <div id="dialogue_popup">
-            <div id="dialogue_popup_holder">
-                <div id="dialogue_popup_text">
-                    <div id="userSelectBlock" class="flex-container flexFlowColumn alignItemsCenter">
-                        <h2 id="logoBlock" class="flex-container">
-                            <img src="img/logo.png" alt="SillyTavern" class="logo">
-                            <span>Welcome to SillyTavern</span>
-                        </h2>
-                        <h3 id="normalLoginPrompt">
-                            Select an Account
-                        </h3>
-                        <h3 id="discreetLoginPrompt">
-                            Enter Login Details
-                        </h3>
-                        <div id="userListBlock" class="wide100p">
-                            <div id="userList" class="flex-container justifySpaceEvenly"></div>
-                            <div id="handleEntryBlock" style="display:none;" class="flex-container flexFlowColumn alignItemsCenter">
-                                <input id="userHandle" class="text_pole" type="text" placeholder="User handle" autocomplete="username">
-                            </div>
-                            <div id="passwordEntryBlock" style="display:none;"
-                                class="flex-container flexFlowColumn alignItemsCenter">
-                                <input id="userPassword" class="text_pole" type="password" placeholder="Password" autocomplete="current-password">
-                                <a id="recoverPassword" href="#" onclick="return false;">Forgot password?</a>
-                                <div class="flex-container">
-                                    <div id="loginButton" class="menu_button">Login</div>
-                                </div>
-                            </div>
-                            <div id="passwordRecoveryBlock" style="display:none;" class="flex-container flexFlowColumn alignItemsCenter">
-                                <div id="recoverMessage">
-                                    Recovery code has been posted to the server console.
-                                </div>
-                                <input id="recoveryCode" class="text_pole" type="text" placeholder="Recovery code">
-                                <input id="newPassword" class="text_pole" type="password" placeholder="New password" autocomplete="new-password">
-                                <div class="flex-container flexGap10">
-                                    <div id="sendRecovery" class="menu_button">Send</div>
-                                    <div id="cancelRecovery" class="menu_button">Cancel</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="neutral_warning" id="errorMessage">
-                        </div>
-                    </div>
+<!-- 阴影弹出框容器 -->
+<div id="shadow_popup">
+    <div class="login-card">
+        <div class="login-header">
+            <!-- <div class="login-logo">
+                <img src="img/logo.png" alt="SillyTavern" style="height: 50px; margin-right: 10px;">
+                <span style="font-size: 28px; font-weight: 600; color: white;">云酒馆</span>
+            </div> -->
+            <div style="text-align: center; margin: 0 auto;">
+                <img id="welcomeImage" src="img/dtu.gif" alt="欢迎回来" style="max-width: 280px; width: 90%; height: auto; margin: 0 auto; display: block; border-radius: 12px;">
+                <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-top: 8px; font-weight: bold; font-style: italic;">日本动画艺术家：丰井祐太</div>
+            </div>
+        </div>
+
+        <!-- 登录表单 -->
+        <div id="userListBlock">
+            <!-- 用户列表 -->
+            <div id="userList"></div>
+
+            <!-- 用户名输入组 -->
+            <div id="handleEntryBlock" style="display:none;" class="login-form-group">
+                <i class="fa-solid fa-id-card" style="position: absolute; left: 15px; top: 16px; color: rgba(255, 255, 255, 0.7); font-size: 18px;"></i>
+                <input id="userHandle" class="login-input" type="text" placeholder="用户名" autocomplete="username">
+            </div>
+
+            <!-- 密码输入组 -->
+            <div id="passwordEntryBlock" style="display:none;" class="login-form-group">
+                <i class="fa-solid fa-lock" style="position: absolute; left: 15px; top: 16px; color: rgba(255, 255, 255, 0.7); font-size: 18px;"></i>
+                <input id="userPassword" class="login-input" type="password" placeholder="密码" autocomplete="current-password">
+
+                <!-- 账户相关链接 -->
+                <div class="login-links">
+                    <a href="register.html" class="login-link">立即注册</a>
+                    <a href="renew.html" class="login-link">续费</a>
+                    <a id="recoverPassword" href="#" onclick="return false;" class="login-link">忘记密码</a>
+                </div>
+            </div>
+
+            <!-- 密码恢复区域 -->
+            <div id="passwordRecoveryBlock" style="display:none;">
+                <div id="recoverMessage">恢复代码已发送至服务器控制台。</div>
+
+                <div class="login-form-group">
+                    <i class="fa-solid fa-key" style="position: absolute; left: 15px; top: 16px; color: rgba(255, 255, 255, 0.7); font-size: 18px;"></i>
+                    <input id="recoveryCode" class="login-input" type="text" placeholder="恢复代码">
+                </div>
+
+                <div class="login-form-group">
+                    <i class="fa-solid fa-lock" style="position: absolute; left: 15px; top: 16px; color: rgba(255, 255, 255, 0.7); font-size: 18px;"></i>
+                    <input id="newPassword" class="login-input" type="password" placeholder="新密码" autocomplete="new-password">
+                </div>
+
+                <div id="recoveryButtons">
+                    <button id="sendRecovery" class="recovery-button">发送</button>
+                    <button id="cancelRecovery" class="recovery-button">取消</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <script src="lib/jquery-3.5.1.min.js"></script>
-    <script src="scripts/login.js" type="module"></script>
+        <!-- 登录按钮 -->
+        <button id="loginButton" class="login-button" style="margin-top: 28px;">登录</button>
+
+        <!-- 错误信息显示区域 -->
+        <div id="errorMessage"></div>
+
+    </div>
+</div>
 </body>
 
+<script>
+    // 图片轮播功能
+    $(document).ready(function() {
+        // 定义图片数组
+        const images = [
+            'img/dtu.gif',
+            'img/dtu2.gif',
+            'img/dtu3.gif',
+            'img/dtu5.gif'
+        ];
+
+        let currentIndex = 0;
+        const $img = $('#welcomeImage');
+
+        // 图片切换函数 - 淡入淡出效果
+        function changeImage() {
+            // 淡出当前图片
+            $img.fadeOut(1000, function() {
+                // 更换图片源
+                currentIndex = (currentIndex + 1) % images.length;
+                $img.attr('src', images[currentIndex]);
+
+                // 淡入新图片
+                $img.fadeIn(1000);
+            });
+        }
+
+        // 设置定时器，每8秒切换一次图片
+        setInterval(changeImage, 8000);
+    });
+</script>
+
 </html>
+

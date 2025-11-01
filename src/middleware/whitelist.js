@@ -10,19 +10,6 @@ import { getIpFromRequest } from '../express-common.js';
 import { color, getConfigValue, safeReadFileSync } from '../util.js';
 
 const whitelistPath = path.join(process.cwd(), './whitelist.txt');
-const enableForwardedWhitelist = !!getConfigValue('enableForwardedWhitelist', false, 'boolean');
-const whitelistDockerHosts = !!getConfigValue('whitelistDockerHosts', true, 'boolean');
-/** @type {string[]} */
-let whitelist = getConfigValue('whitelist', []);
-
-if (fs.existsSync(whitelistPath)) {
-    try {
-        let whitelistTxt = fs.readFileSync(whitelistPath, 'utf-8');
-        whitelist = whitelistTxt.split('\n').filter(ip => ip).map(ip => ip.trim());
-    } catch (e) {
-        // Ignore errors that may occur when reading the whitelist (e.g. permissions)
-    }
-}
 
 /**
  * Get the client IP address from the request headers.
@@ -30,6 +17,7 @@ if (fs.existsSync(whitelistPath)) {
  * @returns {string|undefined} The client IP address
  */
 function getForwardedIp(req) {
+    const enableForwardedWhitelist = !!getConfigValue('enableForwardedWhitelist', false, 'boolean');
     if (!enableForwardedWhitelist) {
         return undefined;
     }
@@ -51,9 +39,11 @@ function getForwardedIp(req) {
 
 /**
  * Resolves the IP addresses of Docker hostnames and adds them to the whitelist.
+ * @param {string[]} whitelist The whitelist array to add Docker hosts to
  * @returns {Promise<void>} Promise that resolves when the Docker hostnames are resolved
  */
-async function addDockerHostsToWhitelist() {
+async function addDockerHostsToWhitelist(whitelist) {
+    const whitelistDockerHosts = !!getConfigValue('whitelistDockerHosts', true, 'boolean');
     if (!whitelistDockerHosts || !isDocker()) {
         return;
     }
@@ -76,6 +66,18 @@ async function addDockerHostsToWhitelist() {
  * @returns {Promise<import('express').RequestHandler>} Promise that resolves to the middleware function
  */
 export default async function getWhitelistMiddleware() {
+    /** @type {string[]} */
+    let whitelist = getConfigValue('whitelist', []);
+
+    if (fs.existsSync(whitelistPath)) {
+        try {
+            let whitelistTxt = fs.readFileSync(whitelistPath, 'utf-8');
+            whitelist = whitelistTxt.split('\n').filter(ip => ip).map(ip => ip.trim());
+        } catch (e) {
+            // Ignore errors that may occur when reading the whitelist (e.g. permissions)
+        }
+    }
+
     const forbiddenWebpage = Handlebars.compile(
         safeReadFileSync('./public/error/forbidden-by-whitelist.html') ?? '',
     );
@@ -84,7 +86,7 @@ export default async function getWhitelistMiddleware() {
         '/favicon.ico',
     ];
 
-    await addDockerHostsToWhitelist();
+    await addDockerHostsToWhitelist(whitelist);
 
     return function (req, res, next) {
         const clientIp = getIpFromRequest(req);

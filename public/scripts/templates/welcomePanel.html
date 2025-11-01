@@ -18,18 +18,27 @@
                 <i class="fa-solid fa-question-circle"></i>
                 <span data-i18n="Docs">Docs</span>
             </a>
-            <a class="menu_button menu_button_icon" target="_blank" href="https://github.com/SillyTavern/SillyTavern">
-                <i class="fa-brands fa-github"></i>
-                <span data-i18n="GitHub">GitHub</span>
-            </a>
             <a class="menu_button menu_button_icon" target="_blank" href="https://discord.gg/sillytavern">
                 <i class="fa-brands fa-discord"></i>
                 <span data-i18n="Discord">Discord</span>
+            </a>
+            <a class="menu_button menu_button_icon" target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?k=lLO4wQx6TcxN_4ojmNNm-N0IaIH5-3PI&jump_from=webapi&authKey=F3mn1FQTwyr6KOhd9bM84DpynkFbezaA2mx8CzQr4Ev1md25tgs8Lu1usZfrNgYt">
+                <i class="fa-brands fa-qq"></i>
+                <span>QQ群</span>
+            </a>
+            <a class="menu_button menu_button_icon" target="_blank" href="/character-showcase.html">
+                <i class="fa-solid fa-database"></i>
+                <span>角色库</span>
             </a>
             <span class="welcomeShortcutsSeparator">&vert;</span>
             <button class="openTemporaryChat menu_button menu_button_icon">
                 <i class="fa-solid fa-comment-dots"></i>
                 <span data-i18n="Temporary Chat">Temporary Chat</span>
+            </button>
+            <span class="welcomeShortcutsSeparator">&vert;</span>
+            <button class="menu_button menu_button_icon" id="checkTavernTimeBtn">
+                <i class="fa-solid fa-clock"></i>
+                <span>酒馆到期查询</span>
             </button>
         </div>
     </div>
@@ -87,4 +96,5 @@
         {{/if}}
         </div>
     </div>
+    <div id="tavernTimeStatus" style="margin-top: 10px; padding: 8px; border-radius: 4px; display: none; text-align: center; background: linear-gradient(135deg, #333, #2a2a2a); color: #fff; font-size: 14px;"></div>
 </div>

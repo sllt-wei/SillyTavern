@@ -23,11 +23,26 @@ import { serverDirectory } from './server-directory.js';
 
 export const KEY_PREFIX = 'user:';
 const AVATAR_PREFIX = 'avatar:';
-const ENABLE_ACCOUNTS = getConfigValue('enableUserAccounts', false, 'boolean');
-const AUTHELIA_AUTH = getConfigValue('sso.autheliaAuth', false, 'boolean');
-const AUTHENTIK_AUTH = getConfigValue('sso.authentikAuth', false, 'boolean');
-const PER_USER_BASIC_AUTH = getConfigValue('perUserBasicAuth', false, 'boolean');
 const ANON_CSRF_SECRET = crypto.randomBytes(64).toString('base64');
+
+/**
+ * Helper functions to get configuration values
+ */
+function isAccountsEnabled() {
+    return !!getConfigValue('enableUserAccounts', false, 'boolean');
+}
+
+function isAutheliaAuthEnabled() {
+    return !!getConfigValue('sso.autheliaAuth', false, 'boolean');
+}
+
+function isAuthentikAuthEnabled() {
+    return !!getConfigValue('sso.authentikAuth', false, 'boolean');
+}
+
+function isPerUserBasicAuthEnabled() {
+    return !!getConfigValue('perUserBasicAuth', false, 'boolean');
+}
 
 /**
  * Cache for user directories.
@@ -36,6 +51,18 @@ const ANON_CSRF_SECRET = crypto.randomBytes(64).toString('base64');
 const DIRECTORIES_CACHE = new Map();
 const PUBLIC_USER_AVATAR = '/img/default-user.png';
 const COOKIE_SECRET_PATH = 'cookie-secret.txt';
+
+/**
+ * Set of currently online users (by handle).
+ * @type {Set<string>}
+ */
+const ONLINE_USERS = new Set();
+
+/**
+ * Configuration for activity update interval (milliseconds).
+ * Only update if last activity was more than this time ago.
+ */
+const ACTIVITY_UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 const STORAGE_KEYS = {
     csrfSecret: 'csrfSecret',
@@ -54,6 +81,8 @@ const STORAGE_KEYS = {
  * @property {string} salt - Salt used for hashing the password
  * @property {boolean} enabled - Whether the user is enabled
  * @property {boolean} admin - Whether the user is an admin (can manage other users)
+ * @property {number} [expiry] - Optional expiry timestamp (milliseconds). If set, user will be logged out after this time
+ * @property {number} [lastActivity] - Last activity timestamp (milliseconds)
  */
 
 /**
@@ -153,7 +182,7 @@ export async function verifySecuritySettings() {
         return;
     }
 
-    if (!ENABLE_ACCOUNTS) {
+    if (!isAccountsEnabled()) {
         logSecurityAlert('Your current SillyTavern configuration is insecure (listening to non-localhost). Enable whitelisting, basic authentication or user accounts.');
     }
 
@@ -175,7 +204,7 @@ export async function verifySecuritySettings() {
 
     if (basicAuthMode) {
         const perUserBasicAuth = getConfigValue('perUserBasicAuth', false, 'boolean');
-        if (perUserBasicAuth && !ENABLE_ACCOUNTS) {
+        if (perUserBasicAuth && !isAccountsEnabled()) {
             console.error(color.red(
                 'Per-user basic authentication is enabled, but user accounts are disabled. This configuration may be insecure.',
             ));
@@ -693,7 +722,7 @@ export async function getUserAvatar(handle) {
  * @returns {boolean} Whether the user should be redirected to the login page
  */
 export function shouldRedirectToLogin(request) {
-    return ENABLE_ACCOUNTS && !request.user;
+    return isAccountsEnabled() && !request.user;
 }
 
 /**
@@ -704,7 +733,7 @@ export function shouldRedirectToLogin(request) {
  * @returns {Promise<boolean>} Whether auto-login was performed
  */
 export async function tryAutoLogin(request, basicAuthMode) {
-    if (!ENABLE_ACCOUNTS || request.user || !request.session) {
+    if (!isAccountsEnabled() || request.user || !request.session) {
         return false;
     }
 
@@ -713,15 +742,15 @@ export async function tryAutoLogin(request, basicAuthMode) {
             return true;
         }
 
-        if (AUTHELIA_AUTH && await autheliaUserLogin(request)) {
+        if (isAutheliaAuthEnabled() && await autheliaUserLogin(request)) {
             return true;
         }
 
-        if (AUTHENTIK_AUTH && await authentikUserLogin(request)) {
+        if (isAuthentikAuthEnabled() && await authentikUserLogin(request)) {
             return true;
         }
 
-        if (basicAuthMode && PER_USER_BASIC_AUTH && await basicUserLogin(request)) {
+        if (basicAuthMode && isPerUserBasicAuthEnabled() && await basicUserLogin(request)) {
             return true;
         }
     }
@@ -842,61 +871,144 @@ async function basicUserLogin(request) {
 }
 
 /**
+ * Updates the last activity timestamp for a user.
+ * Only updates if more than ACTIVITY_UPDATE_INTERVAL has passed since last update.
+ * @param {string} handle - User handle
+ * @returns {Promise<void>}
+ */
+async function updateUserActivity(handle) {
+    if (!handle) return;
+    
+    try {
+        const user = await storage.getItem(toKey(handle));
+        if (user) {
+            const now = Date.now();
+            
+            // Only update if interval has passed to avoid frequent writes
+            if (!user.lastActivity || now - user.lastActivity > ACTIVITY_UPDATE_INTERVAL) {
+                user.lastActivity = now;
+                await storage.setItem(toKey(handle), user);
+                console.debug(`Updated activity for user: ${handle}`);
+            }
+            
+            // Always mark as online
+            ONLINE_USERS.add(handle);
+        }
+    } catch (error) {
+        console.error('Failed to update user activity:', handle, error);
+    }
+}
+
+/**
+ * Removes a user from the online users set.
+ * @param {string} handle - User handle
+ */
+function removeOnlineUser(handle) {
+    if (!handle) return;
+    const wasOnline = ONLINE_USERS.delete(handle);
+    if (wasOnline) {
+        console.debug(`User removed from online list: ${handle}`);
+    }
+}
+
+/**
+ * Gets the list of currently online users.
+ * @returns {string[]} Array of user handles
+ */
+export function getOnlineUsers() {
+    return Array.from(ONLINE_USERS);
+}
+
+/**
+ * Checks if a user is online.
+ * @param {string} handle - User handle
+ * @returns {boolean}
+ */
+export function isUserOnline(handle) {
+    return ONLINE_USERS.has(handle);
+}
+
+/**
  * Middleware to add user data to the request object.
+ * Also checks user expiry and updates activity.
  * @param {import('express').Request} request Request object
  * @param {import('express').Response} response Response object
  * @param {import('express').NextFunction} next Next function
  */
 export async function setUserDataMiddleware(request, response, next) {
-    // If user accounts are disabled, use the default user
-    if (!ENABLE_ACCOUNTS) {
-        const handle = DEFAULT_USER.handle;
-        const directories = getUserDirectories(handle);
-        request.user = {
-            profile: DEFAULT_USER,
-            directories: directories,
-        };
+    try {
+        if (!isAccountsEnabled()) {
+            // No user accounts, use default user
+            request.user = {
+                profile: { ...DEFAULT_USER, enabled: true, admin: true },
+                directories: getUserDirectories(DEFAULT_USER.handle),
+            };
+            return next();
+        }
+
+        if (request.session?.handle) {
+            const profile = await storage.getItem(toKey(request.session.handle));
+
+            if (profile && profile.enabled) {
+                // 检查用户是否过期
+                if (profile.expiry && profile.expiry < Date.now()) {
+                    console.warn(`User ${profile.handle} has expired. Logging out.`);
+
+                    // 从在线用户集合中移除
+                    removeOnlineUser(profile.handle);
+
+                    // 清除会话
+                    // @ts-ignore - Clearing session properties before destroy
+                    request.session.handle = null;
+                    // @ts-ignore
+                    request.session.csrfToken = null;
+                    
+                    // 销毁会话
+                    if (request.session.destroy) {
+                        request.session.destroy((err) => {
+                            if (err) {
+                                console.error('Failed to destroy session:', err);
+                            }
+                        });
+                    }
+                    
+                    return response.redirect('/login?error=expired');
+                }
+
+                // 更新用户最后活动时间（异步执行，不阻塞请求）
+                updateUserActivity(profile.handle).catch(err => {
+                    console.error('Failed to update user activity:', err);
+                });
+
+                request.user = {
+                    profile,
+                    directories: getUserDirectories(profile.handle),
+                };
+                
+                // Touch the session if loading the home page
+                if (request.method === 'GET' && request.path === '/') {
+                    request.session.touch = Date.now();
+                }
+                
+                return next();
+            }
+        }
+
+        // Try auto-login if no valid session
+        if (await tryAutoLogin(request, globalThis.COMMAND_LINE_ARGS?.basicAuthMode)) {
+            return next();
+        }
+
+        // No valid user found
+        // @ts-ignore - Setting null for no user
+        request.user = null;
+        return next();
+    } catch (error) {
+        console.error('Error in setUserDataMiddleware:', error);
+        // @ts-ignore - Setting null for error case
+        request.user = null;
         return next();
     }
-
-    if (!request.session) {
-        console.error('Session not available');
-        return response.sendStatus(500);
-    }
-
-    // If user accounts are enabled, get the user from the session
-    let handle = request.session?.handle;
-
-    // If we have the only user and it's not password protected, use it
-    if (!handle) {
-        return next();
-    }
-
-    /** @type {User} */
-    const user = await storage.getItem(toKey(handle));
-
-    if (!user) {
-        console.error('User not found:', handle);
-        return next();
-    }
-
-    if (!user.enabled) {
-        console.error('User is disabled:', handle);
-        return next();
-    }
-
-    const directories = getUserDirectories(handle);
-    request.user = {
-        profile: user,
-        directories: directories,
-    };
-
-    // Touch the session if loading the home page
-    if (request.method === 'GET' && request.path === '/') {
-        request.session.touch = Date.now();
-    }
-
-    return next();
 }
 
 /**
@@ -919,7 +1031,7 @@ export function requireLoginMiddleware(request, response, next) {
  * @param {import('express').Response} response Response object
  */
 export async function loginPageMiddleware(request, response) {
-    if (!ENABLE_ACCOUNTS) {
+    if (!isAccountsEnabled()) {
         console.log('User accounts are disabled. Redirecting to index page.');
         return response.redirect('/');
     }
@@ -1048,7 +1160,7 @@ export async function createBackupArchive(handle, response) {
  * @returns {Promise<User[]>}
  */
 async function getAllUsers() {
-    if (!ENABLE_ACCOUNTS) {
+    if (!isAccountsEnabled()) {
         return [];
     }
     /**

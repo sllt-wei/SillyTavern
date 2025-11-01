@@ -96,8 +96,6 @@ const EXPORTABLE_KEYS = [
     SECRET_KEYS.DEEPLX_URL,
 ];
 
-const allowKeysExposure = !!getConfigValue('allowKeysExposure', false, 'boolean');
-
 /**
  * SecretManager class to handle all secret operations
  */
@@ -171,6 +169,7 @@ export class SecretManager {
      */
     getMaskedValue(value, key) {
         // No masking if exposure is allowed
+        const allowKeysExposure = !!getConfigValue('allowKeysExposure', false, 'boolean');
         if (allowKeysExposure || EXPORTABLE_KEYS.includes(key)) {
             return value;
         }
@@ -529,6 +528,7 @@ router.post('/read', (request, response) => {
 
 router.post('/view', (request, response) => {
     try {
+        const allowKeysExposure = !!getConfigValue('allowKeysExposure', false, 'boolean');
         if (!allowKeysExposure) {
             console.error('secrets.json could not be viewed unless allowKeysExposure in config.yaml is set to true');
             return response.sendStatus(403);
@@ -555,6 +555,7 @@ router.post('/find', (request, response) => {
             return response.status(400).send('Key is required');
         }
 
+        const allowKeysExposure = !!getConfigValue('allowKeysExposure', false, 'boolean');
         if (!allowKeysExposure && !EXPORTABLE_KEYS.includes(key)) {
             console.error('Cannot fetch secrets unless allowKeysExposure in config.yaml is set to true');
             return response.sendStatus(403);

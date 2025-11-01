@@ -3,8 +3,6 @@ import fs from 'node:fs';
 import { getRealIpFromHeader } from '../express-common.js';
 import { color, getConfigValue } from '../util.js';
 
-const enableAccessLog = getConfigValue('logging.enableAccessLog', true, 'boolean');
-
 const knownIPs = new Set();
 
 export const getAccessLogPath = () => path.join(globalThis.DATA_ROOT, 'access.log');
@@ -40,6 +38,7 @@ export default function accessLoggerMiddleware() {
             knownIPs.add(clientIp);
 
             // Write to access log if enabled
+            const enableAccessLog = !!getConfigValue('logging.enableAccessLog', true, 'boolean');
             if (enableAccessLog) {
                 console.info(color.yellow(`New connection from ${clientIp}; User Agent: ${userAgent}\n`));
                 const logPath = getAccessLogPath();

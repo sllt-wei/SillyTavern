@@ -10,20 +10,40 @@ import { sync as writeFileAtomicSync } from 'write-file-atomic';
 
 import { getConfigValue } from '../util.js';
 
-const thumbnailsEnabled = !!getConfigValue('thumbnails.enabled', true, 'boolean');
-const quality = Math.min(100, Math.max(1, parseInt(getConfigValue('thumbnails.quality', 95, 'number'))));
-const pngFormat = String(getConfigValue('thumbnails.format', 'jpg')).toLowerCase().trim() === 'png';
-
 /**
  * @typedef {'bg' | 'avatar' | 'persona'} ThumbnailType
  */
 
+/**
+ * Helper functions to get thumbnail configuration values
+ */
+function isThumbnailsEnabled() {
+    return !!getConfigValue('thumbnails.enabled', true, 'boolean');
+}
+
+function getThumbnailQuality() {
+    return Math.min(100, Math.max(1, parseInt(getConfigValue('thumbnails.quality', 95, 'number'))));
+}
+
+function isPngFormat() {
+    return String(getConfigValue('thumbnails.format', 'jpg')).toLowerCase().trim() === 'png';
+}
+
+function getDimensions(type) {
+    const dims = {
+        'bg': getConfigValue('thumbnails.dimensions.bg', [160, 90]),
+        'avatar': getConfigValue('thumbnails.dimensions.avatar', [96, 144]),
+        'persona': getConfigValue('thumbnails.dimensions.persona', [96, 144]),
+    };
+    return dims[type];
+}
+
 /** @type {Record<string, number[]>} */
-export const dimensions = {
-    'bg': getConfigValue('thumbnails.dimensions.bg', [160, 90]),
-    'avatar': getConfigValue('thumbnails.dimensions.avatar', [96, 144]),
-    'persona': getConfigValue('thumbnails.dimensions.persona', [96, 144]),
-};
+export const dimensions = new Proxy({}, {
+    get(target, prop) {
+        return getDimensions(prop);
+    }
+});
 
 /**
  * Gets a path to thumbnail folder based on the type.
@@ -132,14 +152,14 @@ async function generateThumbnail(directories, type, file) {
         let buffer;
 
         try {
-            const size = dimensions[type];
+            const size = getDimensions(type);
             const image = await Jimp.read(pathToOriginalFile);
             const width = !isNaN(size?.[0]) && size?.[0] > 0 ? size[0] : image.bitmap.width;
             const height = !isNaN(size?.[1]) && size?.[1] > 0 ? size[1] : image.bitmap.height;
             image.cover({ w: width, h: height });
-            buffer = pngFormat
+            buffer = isPngFormat()
                 ? await image.getBuffer(JimpMime.png)
-                : await image.getBuffer(JimpMime.jpeg, { quality: quality, jpegColorSpace: 'ycbcr' });
+                : await image.getBuffer(JimpMime.jpeg, { quality: getThumbnailQuality(), jpegColorSpace: 'ycbcr' });
         }
         catch (inner) {
             console.warn(`Thumbnailer can not process the image: ${pathToOriginalFile}. Using original size`, inner);
@@ -208,7 +228,7 @@ router.get('/', async function (request, response) {
             return response.sendStatus(403);
         }
 
-        if (!thumbnailsEnabled) {
+        if (!isThumbnailsEnabled()) {
             const folder = getOriginalFolder(request.user.directories, type);
 
             if (folder === undefined) {

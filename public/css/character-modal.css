@@ -1,0 +1,227 @@
+/* 角色卡详情弹窗样式 */
+
+/* 弹窗容器 */
+#character-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+}
+
+.modal-content {
+    position: relative;
+    width: 95%;
+    max-width: 800px;
+    margin: 50px auto;
+    background-color: rgb(50, 50, 55);
+    border-radius: 10px;
+    padding-top: 0px;
+    padding-right: 20px;
+    padding-bottom: 20px;
+    padding-left: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    animation: modal-appear 0.3s ease-out;
+    z-index: 1001; /* 确保内容在最上层 */
+    max-height: 80vh;
+    overflow-y: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 和 Edge */
+}
+
+.modal-content::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    background: transparent; /* Chrome、Safari 和 Opera */
+    display: none;
+}
+
+@keyframes modal-appear {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 弹窗头部 */
+.modal-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    background-color: rgb(50, 50, 55);
+    padding-top: 35px;
+    padding-right: 0px;
+    padding-bottom: 10px;
+    padding-left: 0px;
+    z-index: 1002; /* 确保header在内容之上 */
+}
+
+.modal-header img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 20px;
+}
+
+.modal-header-info {
+    flex-grow: 1;
+}
+
+.modal-header-info h2 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 24px;
+}
+
+/* 弹窗内容 */
+.modal-body {
+    margin-bottom: 20px;
+}
+
+.modal-body h3 {
+    color: #ffffff;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 18px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    position: relative;
+}
+
+.modal-body h3 .icon-container {
+    margin-left: auto; /* 将图标容器推到右边 */
+}
+
+.modal-body h3 i {
+    transition: transform 0.3s ease;
+}
+
+.length-indicator {
+    font-size: 12px;
+    color: #aaa;
+    margin-left: 10px; /* 在标题左侧留出空间 */
+    margin-right: 10px; /* 在图标左侧留出空间 */
+}
+
+.modal-body h3.collapsed i {
+    transform: rotate(-90deg);
+}
+
+.modal-body .content-section {
+    overflow: hidden;
+    transition: max-height 0.5s ease, opacity 0.3s ease;
+    max-height: 1000px;
+    opacity: 1;
+}
+
+.modal-body .content-section.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.modal-body p {
+    color: #dddddd;
+    line-height: 1.5;
+    margin: 0;
+    padding: 10px 0;
+}
+
+/* 弹窗底部 */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    position: relative; /* 确保按钮有正确的定位 */
+    z-index: 1002; /* 确保按钮可以点击 */
+}
+
+.modal-btn-close {
+    background-color: #6c757d;
+    color: white;
+}
+
+.modal-btn-close:hover {
+    background-color: #5a6268;
+}
+
+.modal-btn-import {
+    background-color: #28a745;
+    color: white;
+}
+
+.modal-btn-import:hover {
+    background-color: #218838;
+}
+
+/* 关闭图标 */
+.modal-close-icon {
+    position: fixed;
+    top: 60px; /* 调整与弹窗顶部的距离 */
+    right: calc(50% - 390px); /* 根据弹窗宽度计算右侧位置 */
+    font-size: 24px;
+    color: #aaa;
+    cursor: pointer;
+    z-index: 1003; /* 确保图标在最上层 */
+    transition: color 0.2s, opacity 0.3s;
+    background-color: rgb(50, 50, 55);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0; /* 初始状态隐藏 */
+    visibility: hidden; /* 确保初始状态不可见 */
+}
+
+/* 响应式设计 */
+@media (max-width: 800px) {
+    .modal-close-icon {
+        right: 20px; /* 在小屏幕上固定在右边 */
+    }
+}
+
+.modal-close-icon:hover {
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 20px auto;
+    }
+
+    .modal-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .modal-header img {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+}

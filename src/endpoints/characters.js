@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { promises as fsPromises } from 'node:fs';
+import readline from 'node:readline';
 import { Buffer } from 'node:buffer';
 
 import express from 'express';
@@ -10,7 +11,6 @@ import yaml from 'yaml';
 import _ from 'lodash';
 import mime from 'mime-types';
 import { Jimp, JimpMime } from '../jimp.js';
-import storage from 'node-persist';
 
 import { AVATAR_WIDTH, AVATAR_HEIGHT, DEFAULT_AVATAR_PATH } from '../constants.js';
 import { default as validateAvatarUrlMiddleware, getFileNameValidationFunction } from '../middleware/validateFileName.js';
@@ -20,19 +20,34 @@ import { parse, read, write } from '../character-card-parser.js';
 import { readWorldInfoFile } from './worldinfo.js';
 import { invalidateThumbnail } from './thumbnails.js';
 import { importRisuSprites } from './sprites.js';
-import { getUserDirectories } from '../users.js';
+import { getAllUserHandles, getUserDirectories, toKey } from '../users.js';
+import storage from 'node-persist';
+const defaultAvatarPath = './public/img/ai4.png';
 import { getChatInfo } from './chats.js';
 import { ByafParser } from '../byaf.js';
-import cacheBuster from '../middleware/cacheBuster.js';
+import { getCacheBusterInstance } from '../middleware/cacheBuster.js';
 
-// With 100 MB limit it would take roughly 3000 characters to reach this limit
-const memoryCacheCapacity = getConfigValue('performance.memoryCacheCapacity', '100mb');
-const memoryCache = new MemoryLimitedMap(memoryCacheCapacity);
+// Lazy initialization of memory cache
+let memoryCache = null;
+function getMemoryCache() {
+    if (!memoryCache) {
+        const memoryCacheCapacity = getConfigValue('performance.memoryCacheCapacity', '100mb');
+        memoryCache = new MemoryLimitedMap(memoryCacheCapacity);
+    }
+    return memoryCache;
+}
+
 // Some Android devices require tighter memory management
 const isAndroid = process.platform === 'android';
-// Use shallow character data for the character list
-const useShallowCharacters = !!getConfigValue('performance.lazyLoadCharacters', false, 'boolean');
-const useDiskCache = !!getConfigValue('performance.useDiskCache', true, 'boolean');
+
+// Helper functions to get performance configuration values
+function useShallowCharacters() {
+    return !!getConfigValue('performance.lazyLoadCharacters', false, 'boolean');
+}
+
+function useDiskCache() {
+    return !!getConfigValue('performance.useDiskCache', true, 'boolean');
+}
 
 class DiskCache {
     /**
@@ -82,7 +97,7 @@ class DiskCache {
      */
     async #syncCacheEntries() {
         try {
-            if (!useDiskCache || this.syncQueue.size === 0) {
+            if (!useDiskCache() || this.syncQueue.size === 0) {
                 return;
             }
 
@@ -124,7 +139,7 @@ class DiskCache {
      */
     async verify(directoriesList) {
         try {
-            if (!useDiskCache) {
+            if (!useDiskCache()) {
                 return;
             }
 
@@ -179,13 +194,14 @@ function getCacheKey(inputFile) {
  */
 async function readCharacterData(inputFile, inputFormat = 'png') {
     const cacheKey = getCacheKey(inputFile);
-    if (memoryCache.has(cacheKey)) {
-        return memoryCache.get(cacheKey);
+    const cache = getMemoryCache();
+    if (cache.has(cacheKey)) {
+        return cache.get(cacheKey);
     }
-    if (useDiskCache) {
+    if (useDiskCache()) {
         try {
-            const cache = await diskCache.instance();
-            const cachedData = await cache.getItem(cacheKey);
+            const diskCacheInstance = await diskCache.instance();
+            const cachedData = await diskCacheInstance.getItem(cacheKey);
             if (cachedData) {
                 return cachedData;
             }
@@ -195,11 +211,11 @@ async function readCharacterData(inputFile, inputFormat = 'png') {
     }
 
     const result = await parse(inputFile, inputFormat);
-    !isAndroid && memoryCache.set(cacheKey, result);
-    if (useDiskCache) {
+    !isAndroid && cache.set(cacheKey, result);
+    if (useDiskCache()) {
         try {
-            const cache = await diskCache.instance();
-            await cache.setItem(cacheKey, result);
+            const diskCacheInstance = await diskCache.instance();
+            await diskCacheInstance.setItem(cacheKey, result);
         } catch (error) {
             console.warn('Error while writing to disk cache:', error);
         }
@@ -219,16 +235,17 @@ async function readCharacterData(inputFile, inputFormat = 'png') {
 async function writeCharacterData(inputFile, data, outputFile, request, crop = undefined) {
     try {
         // Reset the cache
-        for (const key of memoryCache.keys()) {
+        const cache = getMemoryCache();
+        for (const key of cache.keys()) {
             if (Buffer.isBuffer(inputFile)) {
                 break;
             }
             if (key.startsWith(inputFile)) {
-                memoryCache.delete(key);
+                cache.delete(key);
                 break;
             }
         }
-        if (useDiskCache && !Buffer.isBuffer(inputFile)) {
+        if (useDiskCache() && !Buffer.isBuffer(inputFile)) {
             diskCache.syncQueue.add(request.user.profile.handle);
         }
         /**
@@ -1060,7 +1077,7 @@ router.post('/edit', validateAvatarUrlMiddleware, async function (request, respo
             fs.unlinkSync(newAvatarPath);
 
             // Bust cache to reload the new avatar
-            cacheBuster.bust(request, response);
+            getCacheBusterInstance().bust(request, response);
         }
 
         return response.sendStatus(200);
@@ -1211,7 +1228,7 @@ router.post('/all', async function (request, response) {
     try {
         const files = fs.readdirSync(request.user.directories.characters);
         const pngFiles = files.filter(file => file.endsWith('.png'));
-        const processingPromises = pngFiles.map(file => processCharacter(file, request.user.directories, { shallow: useShallowCharacters }));
+        const processingPromises = pngFiles.map(file => processCharacter(file, request.user.directories, { shallow: useShallowCharacters() }));
         const data = (await Promise.all(processingPromises)).filter(c => c.name);
         return response.send(data);
     } catch (err) {
@@ -1432,6 +1449,194 @@ router.post('/export', validateAvatarUrlMiddleware, async function (request, res
         return response.sendStatus(400);
     } catch (err) {
         console.error('Character export failed', err);
+        response.sendStatus(500);
+    }
+});
+
+/**
+ * 获取管理员角色卡（支持分页）
+ * @param {import('express').Request} request Request object
+ * @param {import('express').Response} response Response object
+ */
+router.post('/admin-showcase', async function (request, response) {
+    try {
+        // 获取分页参数
+        const page = parseInt(request.body.page) || 1;
+        const pageSize = parseInt(request.body.pageSize) || 12; // 默认每页12个角色卡
+        const searchTerm = request.body.search || '';
+        const tags = request.body.tags || []; // 标签筛选
+
+        // 获取并遍历所有用户目录
+        const userHandles = await getAllUserHandles();
+
+        // 寻找管理员账户
+        let adminHandle = null;
+        for (const handle of userHandles) {
+            const user = await storage.getItem(toKey(handle));
+            if (user && user.admin) {
+                adminHandle = handle;
+                break;
+            }
+        }
+
+        if (!adminHandle) {
+            console.warn('No admin account found for character showcase');
+            return response.status(404).send({ error: 'No admin account found' });
+        }
+
+        // 获取管理员的用户目录
+        const adminDirectories = getUserDirectories(adminHandle);
+
+        // 读取管理员的角色卡
+        const files = fs.readdirSync(adminDirectories.characters);
+        const pngFiles = files.filter(file => file.endsWith('.png'));
+
+        // 处理角色卡数据
+        const processingPromises = pngFiles.map(file => processCharacter(file, adminDirectories, { shallow: getConfigValue('performance.lazyLoadCharacters', false, 'boolean') }));
+        let allData = (await Promise.all(processingPromises)).filter(c => c.name);
+
+        // 应用搜索筛选
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            allData = allData.filter(char => 
+                char.name?.toLowerCase().includes(searchLower) ||
+                char.description?.toLowerCase().includes(searchLower) ||
+                char.personality?.toLowerCase().includes(searchLower) ||
+                char.scenario?.toLowerCase().includes(searchLower)
+            );
+        }
+
+        // 应用标签筛选
+        if (tags.length > 0) {
+            allData = allData.filter(char => {
+                const charTags = char.tags || [];
+                return tags.some(tag => charTags.includes(tag));
+            });
+        }
+
+        // 计算分页信息
+        const totalCount = allData.length;
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = allData.slice(startIndex, endIndex);
+
+        // 返回分页数据
+        return response.send({
+            data: paginatedData,
+            pagination: {
+                currentPage: page,
+                pageSize: pageSize,
+                totalCount: totalCount,
+                totalPages: totalPages,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching admin characters:', err);
+        response.sendStatus(500);
+    }
+});
+
+/**
+ * 从管理员账户导入角色卡到当前用户账户
+ * @param {import('express').Request} request Request object
+ * @param {import('express').Response} response Response object
+ */
+router.post('/import-from-admin', validateAvatarUrlMiddleware, async function (request, response) {
+    try {
+        if (!request.body || !request.body.avatar_url) {
+            return response.status(400).send({ error: 'Missing avatar_url parameter' });
+        }
+
+        // 获取管理员账户
+        const userHandles = await getAllUserHandles();
+        let adminHandle = null;
+        for (const handle of userHandles) {
+            const user = await storage.getItem(toKey(handle));
+            if (user && user.admin) {
+                adminHandle = handle;
+                break;
+            }
+        }
+
+        if (!adminHandle) {
+            return response.status(404).send({ error: 'No admin account found' });
+        }
+
+        // 获取管理员的用户目录
+        const adminDirectories = getUserDirectories(adminHandle);
+
+        // 读取角色卡文件
+        const avatarUrl = request.body.avatar_url;
+        const sourcePath = path.join(adminDirectories.characters, avatarUrl);
+
+        if (!fs.existsSync(sourcePath)) {
+            return response.status(404).send({ error: 'Character not found' });
+        }
+
+        // 目标路径（当前用户的目录）
+        const targetPath = path.join(request.user.directories.characters, avatarUrl);
+
+        // 复制角色卡文件
+        fs.copyFileSync(sourcePath, targetPath);
+
+        // 如果有相关的世界信息，也复制
+        const charName = avatarUrl.replace('.png', '');
+        const sourceWorldInfoPath = path.join(adminDirectories.worlds, `${charName}.json`);
+        if (fs.existsSync(sourceWorldInfoPath)) {
+            const targetWorldInfoPath = path.join(request.user.directories.worlds, `${charName}.json`);
+            fs.copyFileSync(sourceWorldInfoPath, targetWorldInfoPath);
+        }
+
+        return response.status(200).send({ success: true, avatar_url: avatarUrl });
+    } catch (err) {
+        console.error('Error importing character from admin:', err);
+        response.status(500).send({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * 从管理员目录获取角色卡详情（专门用于角色卡展示页面）
+ * @param {import('express').Request} request Request object
+ * @param {import('express').Response} response Response object
+ */
+router.post('/get-admin-character', validateAvatarUrlMiddleware, async function (request, response) {
+    try {
+        if (!request.body || !request.body.avatar_url) {
+            return response.status(400).send({ error: 'Missing avatar_url parameter' });
+        }
+
+        // 获取管理员账户
+        const userHandles = await getAllUserHandles();
+        let adminHandle = null;
+        for (const handle of userHandles) {
+            const user = await storage.getItem(toKey(handle));
+            if (user && user.admin) {
+                adminHandle = handle;
+                break;
+            }
+        }
+
+        if (!adminHandle) {
+            return response.status(404).send({ error: 'No admin account found' });
+        }
+
+        // 获取管理员的用户目录
+        const adminDirectories = getUserDirectories(adminHandle);
+        const item = request.body.avatar_url;
+        const adminFilePath = path.join(adminDirectories.characters, item);
+
+        if (!fs.existsSync(adminFilePath)) {
+            return response.status(404).send({ error: 'Character not found' });
+        }
+
+        // 始终从管理员目录获取角色卡
+        const data = await processCharacter(item, adminDirectories, { shallow: false });
+        return response.send(data);
+    } catch (err) {
+        console.error(err);
         response.sendStatus(500);
     }
 });

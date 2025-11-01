@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- 基础URL设置 -->
+    <base href="/">
+    <!-- 字符编码设置 -->
+    <meta charset="utf-8">
+    <!-- 响应式视口设置 -->
+    <meta name="viewport" content="width=device-width, viewport-fit=cover, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+    <!-- 页面标题 -->
+    <title>注册 - SillyTavern</title>
+    <!-- 引入CSS样式文件 -->
+    <link rel="stylesheet" type="text/css" href="css/login.css">
+    <link href="webfonts/NotoSans/stylesheet.css" rel="stylesheet">
+    <link href="css/fontawesome.min.css" rel="stylesheet">
+    <link href="css/solid.min.css" rel="stylesheet">
+    <!-- 引入jQuery库 -->
+    <script src="lib/jquery-3.5.1.min.js"></script>
+    <script src="scripts/register.js"></script>
+    <style>
+        /* 注册页面主体样式 */
+        body.register {
+            background: url('img/531049.jpg') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Noto Sans', sans-serif;
+            overflow: hidden;  /* 防止主体出现滚动条 */
+        }
+
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 弹出框阴影容器样式 */
+        #shadow_popup {
+            width: 100%;
+            max-width: 440px;  /* 从480px增加到520px */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 对话框弹出框样式 */
+        #dialogue_popup {
+            width: 100%;  /* 添加宽度100%确保填充父容器 */
+            background: rgba(0, 0, 0, 0.2); /* 修改为更暗的背景色 */
+            backdrop-filter: blur(10px) brightness(0.8); /* 添加亮度滤镜使背景更暗 */
+            border-radius: 15px;
+            box-shadow: 0 2px 30px 0 rgba(0, 0, 0, 0.4);
+            border: 0px solid rgba(255, 255, 255, 0.18);
+            overflow: auto;  /* 只在弹出框内部允许滚动 */
+            max-height: 90vh;  /* 限制最大高度 */
+        }
+
+        /* 注册表单样式 */
+        #registerForm {
+            margin: 0 auto;
+            padding: 0px 15px;  /* 增加内边距 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;  /* 子元素水平居中 */
+            margin-bottom: 0px;  /* 新增：调整表单底部间距 */
+        }
+
+        /* 表单组样式 */
+        .form-group {
+            margin-bottom: 15px;
+            position: relative;
+            width: 100%;  /* 确保宽度填满父容器 */
+            text-align: center;  /* 文本内容居中 */
+        }
+
+        /* 按钮区域样式 */
+        .flex-container.flexGap10 {
+            justify-content: center;  /* 按钮水平居中 */
+            width: 100%;
+            display: flex;  /* 确保flex布局生效 */
+            gap: 18px;  /* 添加按钮间距 */
+        }
+        /* 菜单按钮基础样式 */
+        .menu_button {
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 0 0 auto;  /* 防止按钮拉伸 */
+        }
+        /* 输入框样式 */
+        .text_pole {
+            width: 90%;  /* 从100%改为80% */
+            padding: 15px 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            margin: 0 auto;  /* 添加自动外边距实现居中 */
+            display: block;  /* 确保margin:auto生效 */
+        }
+
+        /* 新增：输入框placeholder文字样式 */
+        .text_pole::placeholder {
+            color: rgba(255, 255, 255, 0.6);  /* 半透明白色 */
+        }
+
+        /* 输入框聚焦状态样式 */
+        .text_pole:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 0 2px rgba(100, 149, 237, 0.5);
+        }
+        /* 错误信息样式 */
+        .error-message {
+            color: #ff6b6b;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        /* 菜单按钮基础样式 */
+        .menu_button {
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        /* 注册提交按钮样式 */
+        #submitRegister {
+            background: #3a81d2;  /* 修改为新的颜色值，例如 #3a7bd5 */
+            color: white;
+            font-size: 18px;
+            box-shadow: none;  /* 移除阴影 */
+            border: none;  /* 移除边框 */
+        }
+        /* 注册提交按钮悬停状态 */
+        #submitRegister:hover {
+            background: #5394de;  /* 修改为新的悬停颜色值，例如 #00d2ff */
+            transform: none;  /* 移除上浮效果 */
+            box-shadow: none;  /* 移除阴影 */
+        }
+        /* 链接按钮样式 */
+        a.menu_button {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            font-size: 18px;  /* 添加与注册按钮相同的字体大小 */
+            font-weight: 600; /* 添加与注册按钮相同的字体粗细 */
+        }
+        /* 链接按钮悬停状态 */
+        a.menu_button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        /* Logo图片样式 */
+        .logo {
+            height: 50px;
+            margin-right: 15px;
+        }
+        /* 标题样式 */
+        h2 {
+            color: white;
+            font-size: 28px;
+            margin-top: 25px;  /* 单独设置上边距 */
+            margin-bottom: 20px;  /* 单独设置下边距 */
+            padding: 10px 0;
+            text-align: center;
+            width: 100%;
+        }
+        /* 注册消息提示框样式 */
+        #registerMessage {
+            margin-top: 0px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 15px;  /* 新增：与注册按钮相同的字体大小 */
+            font-family: 'Noto Sans', sans-serif;  /* 新增：与页面主体相同的字体 */
+        }
+    </style>
+</head>
+<body class="register">
+<!-- 阴影弹出框容器 -->
+<div id="shadow_popup">
+    <!-- 对话框弹出框 -->
+    <div id="dialogue_popup">
+        <div id="dialogue_popup_holder">
+            <div id="dialogue_popup_text">
+                <div class="flex-container flexFlowColumn alignItemsCenter">
+                    <!-- 标题区域 -->
+                    <h2 class="flex-container flexFlowColumn alignItemsCenter">
+                        <span>注册您的账户</span>
+                    </h2>
+
+                    <!-- 注册表单 -->
+                    <form id="registerForm" class="wide100p">
+                        <!-- CSRF令牌隐藏字段 -->
+                        <input type="hidden" id="csrfToken" name="csrfToken" value="">
+
+                        <!-- 显示名称输入组 -->
+                        <div class="form-group">
+                            <input id="registerName" class="text_pole" type="text" placeholder="昵称" required>
+                            <div id="nameError" class="error-message"></div>
+                        </div>
+
+                        <!-- 用户名输入组 -->
+                        <div class="form-group">
+                            <input id="registerHandle" class="text_pole" type="text" placeholder="用户名（请不要英文+数字混合）" required>
+                            <div id="handleError" class="error-message"></div>
+                        </div>
+
+                        <!-- 密码输入组 -->
+                        <div class="form-group">
+                            <input id="registerPassword" class="text_pole" type="password" placeholder="密码" required>
+                            <div id="passwordError" class="error-message"></div>
+                        </div>
+
+                        <!-- 确认密码输入组 -->
+                        <div class="form-group">
+                            <input id="registerConfirm" class="text_pole" type="password" placeholder="确认密码" required>
+                            <div id="confirmError" class="error-message"></div>
+                        </div>
+
+                        <!-- 卡密输入组 -->
+                        <div class="form-group">
+                            <input id="cardKey" class="text_pole" type="text" placeholder="卡密" maxlength="19" required>
+                            <!-- <div id="cardKeyError" class="error-message"></div> -->
+                        </div>
+
+                        <!-- 按钮区域 -->
+                        <div class="flex-container flexGap10">
+                            <button id="submitRegister" class="menu_button" type="submit">注册</button>
+                            <a href="login.html" class="menu_button">已有账户？登录</a>
+                        </div>
+                    </form>
+
+                    <!-- 注册消息提示 -->
+                    <div id="registerMessage" style="display: none;"></div>
+
+                    <!-- 账户到期时间提示 -->
+                    <div class="expiry-notice" style="margin-top: 15px; color: #fff; opacity: 0.8; text-align: center; font-size: 14px; padding: 0 15px;">
+                        <p>需要<span style="color: #ff6b6b; font-weight: bold;">购买有效卡密</span>才能注册</p>
+                        <p style="margin-top: 10px;">
+                            <a href="https://ai.slltwl.ggff.net" target="_blank" style="color: #00d2ff; text-decoration: underline;">卡密购买主站地址</a>
+                            <span style="color: #fff;"> 或 </span>
+                            <a href="https://ai.sllt.uk" target="_blank" style="color: #00d2ff; text-decoration: underline;">卡密购买备用地址</a>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

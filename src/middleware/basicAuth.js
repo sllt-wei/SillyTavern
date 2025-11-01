@@ -7,9 +7,6 @@ import storage from 'node-persist';
 import { getAllUserHandles, toKey, getPasswordHash } from '../users.js';
 import { getConfigValue, safeReadFileSync } from '../util.js';
 
-const PER_USER_BASIC_AUTH = getConfigValue('perUserBasicAuth', false, 'boolean');
-const ENABLE_ACCOUNTS = getConfigValue('enableUserAccounts', false, 'boolean');
-
 const basicAuthMiddleware = async function (request, response, callback) {
     const unauthorizedWebpage = safeReadFileSync('./public/error/unauthorized.html') ?? '';
     const unauthorizedResponse = (res) => {
@@ -31,7 +28,9 @@ const basicAuthMiddleware = async function (request, response, callback) {
         return unauthorizedResponse(response);
     }
 
-    const usePerUserAuth = PER_USER_BASIC_AUTH && ENABLE_ACCOUNTS;
+    const perUserBasicAuth = !!getConfigValue('perUserBasicAuth', false, 'boolean');
+    const enableAccounts = !!getConfigValue('enableUserAccounts', false, 'boolean');
+    const usePerUserAuth = perUserBasicAuth && enableAccounts;
     const [username, password] = Buffer.from(credentials, 'base64')
         .toString('utf8')
         .split(':');

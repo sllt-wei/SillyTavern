@@ -276,8 +276,6 @@ export const settingsToUpdate = {
     perplexity_model: ['#model_perplexity_select', 'perplexity_model', false, true],
     groq_model: ['#model_groq_select', 'groq_model', false, true],
     electronhub_model: ['#model_electronhub_select', 'electronhub_model', false, true],
-    electronhub_sort_models: ['#electronhub_sort_models', 'electronhub_sort_models', false, true],
-    electronhub_group_models: ['#electronhub_group_models', 'electronhub_group_models', false, true],
     nanogpt_model: ['#model_nanogpt_select', 'nanogpt_model', false, true],
     deepseek_model: ['#model_deepseek_select', 'deepseek_model', false, true],
     aimlapi_model: ['#model_aimlapi_select', 'aimlapi_model', false, true],
@@ -372,17 +370,15 @@ const default_settings = {
     scenario_format: default_scenario_format,
     personality_format: default_personality_format,
     openai_model: 'gpt-4-turbo',
-    claude_model: 'claude-sonnet-4-5',
-    google_model: 'gemini-2.5-pro',
-    vertexai_model: 'gemini-2.5-pro',
+    claude_model: 'claude-3-5-sonnet-20240620',
+    google_model: 'gemini-1.5-pro',
+    vertexai_model: 'gemini-2.0-flash-001',
     ai21_model: 'jamba-large',
     mistralai_model: 'mistral-large-latest',
     cohere_model: 'command-r-plus',
     perplexity_model: 'sonar-pro',
     groq_model: 'llama-3.3-70b-versatile',
     electronhub_model: 'gpt-4o-mini',
-    electronhub_sort_models: 'alphabetically',
-    electronhub_group_models: false,
     nanogpt_model: 'gpt-4o-mini',
     deepseek_model: 'deepseek-chat',
     aimlapi_model: 'gpt-4o-mini-2024-07-18',
@@ -468,17 +464,15 @@ const oai_settings = {
     scenario_format: default_scenario_format,
     personality_format: default_personality_format,
     openai_model: 'gpt-4-turbo',
-    claude_model: 'claude-sonnet-4-5',
-    google_model: 'gemini-2.5-pro',
-    vertexai_model: 'gemini-2.5-pro',
+    claude_model: 'claude-3-5-sonnet-20240620',
+    google_model: 'gemini-1.5-pro',
+    vertexai_model: 'gemini-2.0-flash-001',
     ai21_model: 'jamba-large',
     mistralai_model: 'mistral-large-latest',
     cohere_model: 'command-r-plus',
     perplexity_model: 'sonar-pro',
     groq_model: 'llama-3.1-70b-versatile',
     electronhub_model: 'gpt-4o-mini',
-    electronhub_sort_models: 'alphabetically',
-    electronhub_group_models: false,
     nanogpt_model: 'gpt-4o-mini',
     deepseek_model: 'deepseek-chat',
     aimlapi_model: 'gpt-4-turbo',
@@ -1716,59 +1710,6 @@ function calculateOpenRouterCost() {
     $('#openrouter_max_prompt_cost').text(cost);
 }
 
-function getElectronHubModelTemplate(option) {
-    const model = model_list.find(x => x.id === option?.element?.value);
-
-    if (!option.id || !model) {
-        return option.text;
-    }
-
-    const inputPrice = model.pricing?.input;
-    const outputPrice = model.pricing?.output;
-    const price = inputPrice && outputPrice ? `$${inputPrice}/$${outputPrice} in/out Mtoken` : 'Unknown';
-
-    const visionIcon = model.metadata?.vision ? '<i class="fa-solid fa-eye fa-sm" title="This model supports vision"></i>' : '';
-    const reasoningIcon = model.metadata?.reasoning ? '<i class="fa-solid fa-brain fa-sm" title="This model supports reasoning"></i>' : '';
-    const toolCallsIcon = model.metadata?.function_call ? '<i class="fa-solid fa-wrench fa-sm" title="This model supports function tools"></i>' : '';
-    const premiumIcon = model?.premium_model ? '<i class="fa-solid fa-crown fa-sm" title="This model requires a subscription"></i>' : '';
-
-    const iconsContainer = document.createElement('span');
-    iconsContainer.insertAdjacentHTML('beforeend', visionIcon);
-    iconsContainer.insertAdjacentHTML('beforeend', reasoningIcon);
-    iconsContainer.insertAdjacentHTML('beforeend', toolCallsIcon);
-    iconsContainer.insertAdjacentHTML('beforeend', premiumIcon);
-
-    const capabilities = (iconsContainer.children.length) ? ` | ${iconsContainer.innerHTML}` : '';
-
-    return $((`
-        <div class="flex-container alignItemsBaseline" title="${DOMPurify.sanitize(model.id)}">
-            <strong>${DOMPurify.sanitize(model.name)}</strong> | ${model.tokens} ctx | <small>${price}</small>${capabilities}
-        </div>
-    `));
-}
-
-function calculateElectronHubCost() {
-    if (oai_settings.chat_completion_source !== chat_completion_sources.ELECTRONHUB) {
-        return;
-    }
-
-    let cost = 'Unknown';
-    const model = model_list.find(x => x.id === oai_settings.electronhub_model);
-
-    if (model?.pricing) {
-        const outputCost = Number(model.pricing.output / 1000000);
-        const inputCost = Number(model.pricing.input / 1000000);
-        const outputTokens = oai_settings.openai_max_tokens;
-        const inputTokens = (oai_settings.openai_max_context - outputTokens);
-        const totalCost = (outputCost * outputTokens) + (inputCost * inputTokens);
-        if (!isNaN(totalCost)) {
-            cost = '$' + totalCost.toFixed(4);
-        }
-    }
-
-    $('#electronhub_max_prompt_cost').text(cost);
-}
-
 function saveModelList(data) {
     model_list = data.map((model) => ({ ...model }));
     model_list.sort((a, b) => a?.id && b?.id && a.id.localeCompare(b.id));
@@ -1834,29 +1775,44 @@ function saveModelList(data) {
     }
 
     if (oai_settings.chat_completion_source == chat_completion_sources.MISTRALAI) {
-        $('#model_mistralai_select').empty();
+        /** @type {HTMLSelectElement} */
+        const mistralModelSelect = document.querySelector('#model_mistralai_select');
+        if (mistralModelSelect) {
+            const options = Array.from(mistralModelSelect.options);
+            options.forEach((option) => {
+                const existingModel = model_list.find(model => model.id === option.value);
+                if (!existingModel) {
+                    option.remove();
+                }
+            });
 
-        for (const model of model_list.filter(model => model?.capabilities?.completion_chat)) {
-            $('#model_mistralai_select').append(new Option(model.id, model.id));
+            const otherOptionsGroup = mistralModelSelect.querySelector('#mistralai_other_models');
+            for (const model of model_list.filter(model => model?.capabilities?.completion_chat)) {
+                if (!options.some(option => option.value === model.id) && otherOptionsGroup) {
+                    otherOptionsGroup.append(new Option(model.id, model.id));
+                }
+            }
+
+            const selectedModel = model_list.find(model => model.id === oai_settings.mistralai_model);
+            if (!selectedModel) {
+                oai_settings.mistralai_model = model_list.find(model => model?.capabilities?.completion_chat)?.id;
+            }
+
+            $('#model_mistralai_select').val(oai_settings.mistralai_model).trigger('change');
         }
-
-        const selectedModel = model_list.find(model => model.id === oai_settings.mistralai_model);
-        if (!selectedModel) {
-            oai_settings.mistralai_model = model_list.find(model => model?.capabilities?.completion_chat)?.id;
-        }
-
-        $('#model_mistralai_select').val(oai_settings.mistralai_model).trigger('change');
     }
 
     if (oai_settings.chat_completion_source == chat_completion_sources.ELECTRONHUB) {
-        model_list = model_list.filter(model => model?.endpoints?.includes('/v1/chat/completions'));
-
-        model_list = electronHubSortBy(model_list, oai_settings.electronhub_sort_models);
-
         $('#model_electronhub_select').empty();
-
-        const groupedList = oai_settings.electronhub_group_models ? electronHubGroupByVendor(model_list) : model_list;
-        appendElectronHubOptions(groupedList, oai_settings.electronhub_group_models);
+        model_list.forEach((model) => {
+            if (model?.endpoints?.includes('/v1/chat/completions')) {
+                $('#model_electronhub_select').append(
+                    $('<option>', {
+                        value: model.id,
+                        text: model.name,
+                    }));
+            }
+        });
 
         const selectedModel = model_list.find(model => model.id === oai_settings.electronhub_model);
         if (model_list.length > 0 && (!selectedModel || !oai_settings.electronhub_model)) {
@@ -1921,7 +1877,7 @@ function saveModelList(data) {
     }
 
     if (oai_settings.chat_completion_source === chat_completion_sources.MAKERSUITE) {
-    // Clear only the "Other" optgroup for dynamic models
+        // Clear only the "Other" optgroup for dynamic models
         $('#google_other_models').empty();
 
         // Get static model options that are already in the HTML
@@ -1932,7 +1888,7 @@ function saveModelList(data) {
 
         // Add dynamic models to the "Other" group
         model_list.forEach((model) => {
-        // Only add if not already in static list
+            // Only add if not already in static list
             if (!staticModels.includes(model.id)) {
                 $('#google_other_models').append(
                     $('<option>', {
@@ -2028,24 +1984,6 @@ function saveModelList(data) {
             .append(new Option(modelId || 'None', modelId || '', true, true))
             .trigger('change');
     }
-
-    if (oai_settings.chat_completion_source == chat_completion_sources.XAI) {
-        $('#model_xai_select').empty();
-        model_list.forEach((model) => {
-            $('#model_xai_select').append(
-                $('<option>', {
-                    value: model.id,
-                    text: model.id,
-                }));
-        });
-
-        const selectedModel = model_list.find(model => model.id === oai_settings.xai_model);
-        if (model_list.length > 0 && (!selectedModel || !oai_settings.xai_model)) {
-            oai_settings.xai_model = model_list[0].id;
-        }
-
-        $('#model_xai_select').val(oai_settings.xai_model).trigger('change');
-    }
 }
 
 function appendOpenRouterOptions(model_list, groupModels = false, sort = false) {
@@ -2092,61 +2030,6 @@ const openRouterSortBy = (data, property = 'alphabetically') => {
 function openRouterGroupByVendor(array) {
     return array.reduce((acc, curr) => {
         const vendor = curr.id.split('/')[0];
-
-        if (!acc.has(vendor)) {
-            acc.set(vendor, []);
-        }
-
-        acc.get(vendor).push(curr);
-
-        return acc;
-    }, new Map());
-}
-
-function appendElectronHubOptions(model_list, groupModels = false) {
-    const appendOption = (model, parent = null) => {
-        (parent || $('#model_electronhub_select')).append(
-            $('<option>', {
-                value: model.id,
-                text: model.name,
-            }));
-    };
-
-    if (groupModels) {
-        model_list.forEach((models, vendor) => {
-            const optgroup = $('<optgroup>').attr('label', vendor);
-
-            models.forEach((model) => {
-                appendOption(model, optgroup);
-            });
-
-            $('#model_electronhub_select').append(optgroup);
-        });
-    } else {
-        model_list.forEach((model) => {
-            appendOption(model);
-        });
-    }
-
-}
-
-function electronHubSortBy(data, property = 'alphabetically') {
-    return data.sort((a, b) => {
-        if (property === 'context_length') {
-            return b.tokens - a.tokens;
-        } else if (property === 'pricing.input') {
-            return parseFloat(a.pricing.input) - parseFloat(b.pricing.input);
-        } else if (property === 'pricing.output') {
-            return parseFloat(a.pricing.output) - parseFloat(b.pricing.output);
-        } else {
-            return a?.name && b?.name && a.name.localeCompare(b.name);
-        }
-    });
-}
-
-function electronHubGroupByVendor(array) {
-    return array.reduce((acc, curr) => {
-        const vendor = String(curr?.name || curr?.id || 'Other').split(':')[0].trim() || 'Other';
 
         if (!acc.has(vendor)) {
             acc.set(vendor, []);
@@ -2308,7 +2191,7 @@ async function sendOpenAIRequest(type, messages, signal, { jsonSchema = null } =
     const useLogprobs = !!power_user.request_token_probabilities;
     const canMultiSwipe = oai_settings.n > 1 && !isContinue && !isImpersonate && !isQuiet && (isOAI || isAzureOpenAI || isCustom || isXAI || isAimlapi || isMoonshot);
 
-    const logitBiasSources = [chat_completion_sources.OPENAI, chat_completion_sources.AZURE_OPENAI, chat_completion_sources.OPENROUTER, chat_completion_sources.ELECTRONHUB, chat_completion_sources.CUSTOM];
+    const logitBiasSources = [chat_completion_sources.OPENAI, chat_completion_sources.AZURE_OPENAI, chat_completion_sources.OPENROUTER, chat_completion_sources.CUSTOM];
     if (oai_settings.bias_preset_selected
         && logitBiasSources.includes(oai_settings.chat_completion_source)
         && Array.isArray(oai_settings.bias_presets[oai_settings.bias_preset_selected])
@@ -2470,24 +2353,19 @@ async function sendOpenAIRequest(type, messages, signal, { jsonSchema = null } =
     }
 
     if (isXAI) {
-        const model = generate_data.model;
-        if (model.includes('grok-3-mini')) {
+        if (generate_data.model.includes('grok-4')) {
             delete generate_data.presence_penalty;
             delete generate_data.frequency_penalty;
             delete generate_data.stop;
-        } else {
-            // As of 2025/09/21, only grok-3-mini accepts reasoning_effort
             delete generate_data.reasoning_effort;
         }
-
-        if (model.includes('grok-4') || model.includes('grok-code')) {
+        if (generate_data.model.includes('grok-3-mini')) {
             delete generate_data.presence_penalty;
             delete generate_data.frequency_penalty;
-
-            // grok-4-fast-non-reasoning accepts stop
-            if (!model.includes('grok-4-fast-non-reasoning')) {
-                delete generate_data.stop;
-            }
+        }
+        if (generate_data.model.includes('grok-vision')) {
+            delete generate_data.tools;
+            delete generate_data.tool_choice;
         }
     }
 
@@ -2681,7 +2559,7 @@ export function getStreamingReply(data, state, { chatCompletionSource = null, ov
             state.reasoning += (data.choices?.filter(x => x?.delta?.reasoning)?.[0]?.delta?.reasoning || '');
         }
         return data.choices?.[0]?.delta?.content ?? data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text ?? '';
-    } else if ([chat_completion_sources.CUSTOM, chat_completion_sources.POLLINATIONS, chat_completion_sources.AIMLAPI, chat_completion_sources.MOONSHOT, chat_completion_sources.COMETAPI, chat_completion_sources.ELECTRONHUB, chat_completion_sources.NANOGPT].includes(chat_completion_source)) {
+    } else if ([chat_completion_sources.CUSTOM, chat_completion_sources.POLLINATIONS, chat_completion_sources.AIMLAPI, chat_completion_sources.MOONSHOT, chat_completion_sources.COMETAPI, chat_completion_sources.ELECTRONHUB].includes(chat_completion_source)) {
         if (show_thoughts) {
             state.reasoning +=
                 data.choices?.filter(x => x?.delta?.reasoning_content)?.[0]?.delta?.reasoning_content ??
@@ -3645,8 +3523,6 @@ function loadOpenAISettings(data, settings) {
     oai_settings.perplexity_model = settings.perplexity_model ?? default_settings.perplexity_model;
     oai_settings.groq_model = settings.groq_model ?? default_settings.groq_model;
     oai_settings.electronhub_model = settings.electronhub_model ?? default_settings.electronhub_model;
-    oai_settings.electronhub_sort_models = settings.electronhub_sort_models ?? default_settings.electronhub_sort_models;
-    oai_settings.electronhub_group_models = settings.electronhub_group_models ?? default_settings.electronhub_group_models;
     oai_settings.nanogpt_model = settings.nanogpt_model ?? default_settings.nanogpt_model;
     oai_settings.deepseek_model = settings.deepseek_model ?? default_settings.deepseek_model;
     oai_settings.aimlapi_model = settings.aimlapi_model ?? default_settings.aimlapi_model;
@@ -3790,8 +3666,6 @@ function loadOpenAISettings(data, settings) {
     $('#openrouter_allow_fallbacks').prop('checked', oai_settings.openrouter_allow_fallbacks);
     $('#openrouter_providers_chat').val(oai_settings.openrouter_providers).trigger('change');
     $('#openrouter_middleout').val(oai_settings.openrouter_middleout);
-    $('#electronhub_sort_models').val(oai_settings.electronhub_sort_models);
-    $('#electronhub_group_models').prop('checked', oai_settings.electronhub_group_models);
     $('#squash_system_messages').prop('checked', oai_settings.squash_system_messages);
     $('#continue_prefill').prop('checked', oai_settings.continue_prefill);
     $('#openai_function_calling').prop('checked', oai_settings.function_calling);
@@ -4054,8 +3928,6 @@ async function saveOpenAIPreset(name, settings, triggerUi = true) {
         pollinations_model: settings.pollinations_model,
         aimlapi_model: settings.aimlapi_model,
         electronhub_model: settings.electronhub_model,
-        electronhub_sort_models: settings.electronhub_sort_models,
-        electronhub_group_models: settings.electronhub_group_models,
         moonshot_model: settings.moonshot_model,
         fireworks_model: settings.fireworks_model,
         cometapi_model: settings.cometapi_model,
@@ -4660,8 +4532,75 @@ function getMistralMaxContext(model, isUnlocked) {
         }
     }
 
+    const contextMap = {
+        'codestral-2405': 32768,
+        'codestral-2411-rc5': 262144,
+        'codestral-2412': 262144,
+        'codestral-2501': 262144,
+        'codestral-2508': 256000,
+        'codestral-latest': 256000,
+        'codestral-mamba-2407': 262144,
+        'codestral-mamba-latest': 262144,
+        'open-codestral-mamba': 262144,
+        'ministral-3b-2410': 131072,
+        'ministral-3b-latest': 131072,
+        'ministral-8b-2410': 131072,
+        'ministral-8b-latest': 131072,
+        'mistral-large-2407': 131072,
+        'mistral-large-2411': 131072,
+        'mistral-large-latest': 131072,
+        'mistral-large-pixtral-2411': 131072,
+        'mistral-tiny-2407': 131072,
+        'mistral-tiny-latest': 131072,
+        'open-mistral-nemo': 131072,
+        'open-mistral-nemo-2407': 131072,
+        'pixtral-12b': 131072,
+        'pixtral-12b-2409': 131072,
+        'pixtral-12b-latest': 131072,
+        'pixtral-large-2411': 131072,
+        'pixtral-large-latest': 131072,
+        'open-mixtral-8x22b': 65536,
+        'open-mixtral-8x22b-2404': 65536,
+        'mistral-embed': 32768,
+        'mistral-large-2402': 32768,
+        'mistral-medium': 131072,
+        'mistral-medium-2312': 32768,
+        'mistral-medium-2505': 131072,
+        'mistral-medium-2508': 262144,
+        'mistral-medium-latest': 262144,
+        'mistral-moderation-2411': 32768,
+        'mistral-moderation-latest': 32768,
+        'mistral-ocr-2503': 32768,
+        'mistral-ocr-latest': 32768,
+        'mistral-saba-2502': 32768,
+        'mistral-saba-latest': 32768,
+        'mistral-small': 32768,
+        'mistral-small-2312': 32768,
+        'mistral-small-2402': 32768,
+        'mistral-small-2409': 32768,
+        'mistral-small-2501': 32768,
+        'mistral-small-2503': 32768,
+        'mistral-small-2506': 131072,
+        'mistral-small-latest': 131072,
+        'mistral-tiny': 32768,
+        'mistral-tiny-2312': 32768,
+        'open-mistral-7b': 32768,
+        'open-mixtral-8x7b': 32768,
+        'devstral-small-2505': 131072,
+        'devstral-small-2507': 131072,
+        'devstral-small-latest': 131072,
+        'devstral-medium-latest': 131072,
+        'devstral-medium-2507': 131072,
+        'magistral-medium-latest': 40960,
+        'magistral-medium-2506': 40960,
+        'magistral-small-latest': 40960,
+        'magistral-small-2506': 40000,
+        'magistral-small-2507': 40960,
+        'magistral-medium-2507': 40960,
+    };
+
     // Return context size if model found, otherwise default to 32k
-    return max_32k;
+    return Object.entries(contextMap).find(([key]) => model.includes(key))?.[1] || 32768;
 }
 
 /**
@@ -4939,10 +4878,6 @@ async function onModelChange() {
     }
 
     if ($(this).is('#model_xai_select')) {
-        if (!value) {
-            console.debug('Null XAI model selected. Ignoring.');
-            return;
-        }
         console.log('XAI model changed to', value);
         oai_settings.xai_model = value;
     }
@@ -4981,15 +4916,17 @@ async function onModelChange() {
     if ([chat_completion_sources.MAKERSUITE, chat_completion_sources.VERTEXAI].includes(oai_settings.chat_completion_source)) {
         if (oai_settings.max_context_unlocked) {
             $('#openai_max_context').attr('max', max_2mil);
-        } else if (value.includes('gemini-2.5-flash-image')) {
+        } else if (value.includes('gemini-1.5-pro')) {
+            $('#openai_max_context').attr('max', max_2mil);
+        } else if (value.includes('gemini-2.5-flash-image-preview')) {
             $('#openai_max_context').attr('max', max_32k);
-        } else if (value.includes('gemini-2.0-flash') || value.includes('gemini-2.0-pro') || value.includes('gemini-exp') || value.includes('gemini-2.5-flash') || value.includes('gemini-2.5-pro') || value.includes('learnlm-2.0-flash') || value.includes('gemini-robotics')) {
+        } else if (value.includes('gemini-1.5-flash') || value.includes('gemini-2.0-flash') || value.includes('gemini-2.0-pro') || value.includes('gemini-exp') || value.includes('gemini-2.5-flash') || value.includes('gemini-2.5-pro') || value.includes('learnlm-2.0-flash')) {
             $('#openai_max_context').attr('max', max_1mil);
         } else if (value.includes('gemma-3-27b-it')) {
             $('#openai_max_context').attr('max', max_128k);
         } else if (value.includes('gemma-3n-e4b-it')) {
             $('#openai_max_context').attr('max', max_8k);
-        } else if (value.includes('gemma-3')) {
+        } else if (value.includes('gemma-3') || value.includes('learnlm-1.5-pro-experimental')) {
             $('#openai_max_context').attr('max', max_32k);
         } else {
             $('#openai_max_context').attr('max', max_32k);
@@ -5029,12 +4966,9 @@ async function onModelChange() {
 
     if (oai_settings.chat_completion_source == chat_completion_sources.CLAUDE) {
         if (oai_settings.max_context_unlocked) {
-            $('#openai_max_context').attr('max', unlocked_max);
+            $('#openai_max_context').attr('max', max_200k);
         }
-        else if (value.startsWith('claude-sonnet-4-5')) {
-            $('#openai_max_context').attr('max', max_1mil);
-        }
-        else if (value == 'claude-2.1' || value.startsWith('claude-3') || value.startsWith('claude-opus') || value.startsWith('claude-haiku') || value.startsWith('claude-sonnet')) {
+        else if (value == 'claude-2.1' || value.startsWith('claude-3') || value.startsWith('claude-opus') || value.startsWith('claude-sonnet')) {
             $('#openai_max_context').attr('max', max_200k);
         }
         else if (value.endsWith('100k') || value.startsWith('claude-2') || value === 'claude-instant-1.2') {
@@ -5159,8 +5093,6 @@ async function onModelChange() {
         $('#openai_max_context').val(oai_settings.openai_max_context).trigger('input');
         oai_settings.temp_openai = Math.min(oai_max_temp, oai_settings.temp_openai);
         $('#temp_openai').attr('max', oai_max_temp).val(oai_settings.temp_openai).trigger('input');
-
-        calculateElectronHubCost();
     }
 
     if (oai_settings.chat_completion_source === chat_completion_sources.NANOGPT) {
@@ -5212,14 +5144,11 @@ async function onModelChange() {
             $('#openai_max_context').attr('max', unlocked_max);
         } else if (oai_settings.xai_model.includes('grok-2-vision')) {
             $('#openai_max_context').attr('max', max_32k);
-        } else if (oai_settings.xai_model.includes('grok-4-fast')) {
-            $('#openai_max_context').attr('max', max_2mil);
+        } else if (oai_settings.xai_model.includes('grok-vision')) {
+            $('#openai_max_context').attr('max', max_8k);
         } else if (oai_settings.xai_model.includes('grok-4')) {
             $('#openai_max_context').attr('max', max_256k);
-        } else if (oai_settings.xai_model.includes('grok-code')) {
-            $('#openai_max_context').attr('max', max_256k);
         } else {
-            // grok 2 and grok 3
             $('#openai_max_context').attr('max', max_128k);
         }
 
@@ -5288,10 +5217,6 @@ async function onModelChange() {
 }
 
 async function onOpenrouterModelSortChange() {
-    await getStatusOpen();
-}
-
-async function onElectronHubModelSortChange() {
     await getStatusOpen();
 }
 
@@ -5752,11 +5677,11 @@ export function isImageInliningSupported() {
         'c4ai-aya-vision',
         'command-a-vision',
         // Google AI Studio
+        'gemini-1.5',
         'gemini-2.0',
         'gemini-2.5',
         'gemini-exp-1206',
         'learnlm',
-        'gemini-robotics',
         // MistralAI
         'mistral-small-2503',
         'mistral-small-2506',
@@ -5768,6 +5693,7 @@ export function isImageInliningSupported() {
         // xAI (Grok)
         'grok-4',
         'grok-2-vision',
+        'grok-vision',
         // Moonshot
         'moonshot-v1-8k-vision-preview',
         'moonshot-v1-32k-vision-preview',
@@ -5800,7 +5726,6 @@ export function isImageInliningSupported() {
         case chat_completion_sources.COHERE:
             return visionSupportedModels.some(model => oai_settings.cohere_model.includes(model));
         case chat_completion_sources.XAI:
-            // TODO: xAI's /models endpoint doesn't return modality info
             return visionSupportedModels.some(model => oai_settings.xai_model.includes(model));
         case chat_completion_sources.AIMLAPI:
             return (Array.isArray(model_list) && model_list.find(m => m.id === oai_settings.aimlapi_model)?.features?.includes('openai/chat-completion.vision'));
@@ -6192,14 +6117,12 @@ export function initOpenAI() {
         oai_settings.openai_max_context = Number($(this).val());
         $('#openai_max_context_counter').val(`${$(this).val()}`);
         calculateOpenRouterCost();
-        calculateElectronHubCost();
         saveSettingsDebounced();
     });
 
     $('#openai_max_tokens').on('input', function () {
         oai_settings.openai_max_tokens = Number($(this).val());
         calculateOpenRouterCost();
-        calculateElectronHubCost();
         saveSettingsDebounced();
     });
 
@@ -6403,16 +6326,6 @@ export function initOpenAI() {
         saveSettingsDebounced();
     });
 
-    $('#electronhub_sort_models').on('input', function () {
-        oai_settings.electronhub_sort_models = String($(this).val());
-        saveSettingsDebounced();
-    });
-
-    $('#electronhub_group_models').on('input', function () {
-        oai_settings.electronhub_group_models = !!$(this).prop('checked');
-        saveSettingsDebounced();
-    });
-
     $('#squash_system_messages').on('input', function () {
         oai_settings.squash_system_messages = !!$(this).prop('checked');
         saveSettingsDebounced();
@@ -6590,14 +6503,6 @@ export function initOpenAI() {
             width: '100%',
             templateResult: getAimlapiModelTemplate,
         });
-        $('#model_electronhub_select').select2({
-            placeholder: t`Select a model`,
-            searchInputPlaceholder: t`Search models...`,
-            searchInputCssClass: 'text_pole',
-            width: '100%',
-            templateResult: getElectronHubModelTemplate,
-            matcher: textValueMatcher,
-        });
         $('#completion_prompt_manager_popup_entry_form_injection_trigger').select2({
             placeholder: t`All types (default)`,
             width: '100%',
@@ -6644,8 +6549,6 @@ export function initOpenAI() {
     $('#model_openrouter_select').on('change', onModelChange);
     $('#openrouter_group_models').on('change', onOpenrouterModelSortChange);
     $('#openrouter_sort_models').on('change', onOpenrouterModelSortChange);
-    $('#electronhub_group_models').on('change', onElectronHubModelSortChange);
-    $('#electronhub_sort_models').on('change', onElectronHubModelSortChange);
     $('#model_ai21_select').on('change', onModelChange);
     $('#model_mistralai_select').on('change', onModelChange);
     $('#model_cohere_select').on('change', onModelChange);
@@ -6678,4 +6581,137 @@ export function initOpenAI() {
     $('#openai_proxy_password_show').on('click', onProxyPasswordShowClick);
     $('#customize_additional_parameters').on('click', onCustomizeParametersClick);
     $('#openai_proxy_preset').on('change', onProxyPresetChange);
+    
+    // 令牌额度查询功能
+    $('#refresh_usage_btn').on('click', refreshUsageInfo);
+    
+    // 页面加载时自动查询一次使用情况
+    $(document).ready(() => {
+        if (main_api === 'openai' && oai_settings.chat_completion_source === chat_completion_sources.CUSTOM) {
+            refreshUsageInfo();
+        }
+    });
+}
+
+/**
+ * 刷新 OpenAI API 使用情况
+ */
+async function refreshUsageInfo() {
+    const usageSection = $('#openai_usage_section');
+    const usageInfo = $('#usage_info');
+    const usageError = $('#usage_error');
+    const usageLoading = $('#usage_loading');
+    
+    // 显示加载状态
+    usageInfo.hide();
+    usageError.hide();
+    usageLoading.show();
+    
+    try {
+        // 构建请求参数
+        const requestData = {
+            api: oai_settings.chat_completion_source,
+            reverse_proxy: oai_settings.reverse_proxy || '',
+            proxy_password: oai_settings.proxy_password || '',
+            server_url: oai_settings.custom_url || ''
+        };
+        
+        // 查询使用情况
+        const usageResponse = await fetch('/api/openai/usage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        // 查询账单信息
+        const billingResponse = await fetch('/api/openai/billing', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        if (!usageResponse.ok && !billingResponse.ok) {
+            throw new Error('无法获取使用情况信息');
+        }
+        
+        let usageData = null;
+        let billingData = null;
+        
+        if (usageResponse.ok) {
+            usageData = await usageResponse.json();
+        }
+        
+        if (billingResponse.ok) {
+            billingData = await billingResponse.json();
+        }
+        
+        // 更新显示
+        updateUsageDisplay(usageData, billingData);
+        
+        // 隐藏加载状态，显示信息
+        usageLoading.hide();
+        usageInfo.show();
+        
+    } catch (error) {
+        console.error('获取使用情况失败:', error);
+        
+        // 隐藏加载状态，显示错误
+        usageLoading.hide();
+        usageError.show();
+    }
+}
+
+/**
+ * 更新使用情况显示
+ * @param {Object} usageData 使用情况数据
+ * @param {Object} billingData 账单数据
+ */
+function updateUsageDisplay(usageData, billingData) {
+    // 更新总令牌数
+    if (usageData && usageData.total_usage) {
+        $('#total_tokens').text(formatNumber(usageData.total_usage));
+    } else {
+        $('#total_tokens').text('-');
+    }
+    
+    // 更新总费用
+    if (billingData && billingData.total_usage) {
+        $('#total_cost').text(`$${billingData.total_usage.toFixed(4)}`);
+    } else {
+        $('#total_cost').text('-');
+    }
+    
+    // 更新当前余额
+    if (billingData && billingData.total_granted) {
+        const balance = billingData.total_granted - (billingData.total_usage || 0);
+        $('#current_balance').text(`$${balance.toFixed(4)}`);
+    } else {
+        $('#current_balance').text('-');
+    }
+    
+    // 更新硬限制
+    if (billingData && billingData.hard_limit_usd) {
+        $('#hard_limit').text(`$${billingData.hard_limit_usd.toFixed(2)}`);
+    } else {
+        $('#hard_limit').text('-');
+    }
+}
+
+/**
+ * 格式化数字显示
+ * @param {number} num 要格式化的数字
+ * @returns {string} 格式化后的字符串
+ */
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    } else {
+        return num.toString();
+    }
 }

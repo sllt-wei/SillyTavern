@@ -105,6 +105,27 @@ class CacheBuster {
     }
 }
 
-// Export a single instance for the entire application
-const instance = new CacheBuster();
-export default instance;
+// Lazily create and export the instance
+let instance = null;
+
+/**
+ * Get the cache buster middleware.
+ * @returns {import('express').RequestHandler} The middleware function.
+ */
+export default function getCacheBusterMiddleware() {
+    if (!instance) {
+        instance = new CacheBuster();
+    }
+    return instance.middleware;
+}
+
+/**
+ * Get the cache buster instance (for direct bust() calls).
+ * @returns {CacheBuster} The cache buster instance.
+ */
+export function getCacheBusterInstance() {
+    if (!instance) {
+        instance = new CacheBuster();
+    }
+    return instance;
+}

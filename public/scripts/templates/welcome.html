@@ -24,6 +24,11 @@
             <span data-i18n="Character Management">Character Management</span>
         </button>
         <span data-i18n="and pick a character."> and pick a character.</span>
+        <span style="margin-left: 15px;">或</span>
+        <a class="menu_button menu_button_icon inline-flex" target="_blank" href="/character-showcase.html">
+            <i class="fa-solid fa-database"></i>
+            <span>角色库</span>
+        </a>
     </li>
 </ol>
 
@@ -52,7 +57,14 @@
     </button>
 
     <span data-i18n="to install additional features.">to install additional features.</span>
+    
+    <span style="margin-left: 15px;">或</span>
+    <button class="menu_button menu_button_icon inline-flex" id="checkTavernTimeBtn" style="margin-left: 10px;">
+        <i class="fa-solid fa-clock"></i>
+        <span>酒馆到期查询</span>
+    </button>
 </div>
+<div id="tavernTimeStatus" style="margin-top: 5px; padding: 5px; border-radius: 4px; display: none;"></div>
 
 <h3 data-i18n="Confused or lost?">Confused or lost?</h3>
 <ul>

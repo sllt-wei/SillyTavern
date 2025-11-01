@@ -133,7 +133,6 @@
 * {
     box-sizing: border-box;
     -webkit-font-smoothing: antialiased;
-    -webkit-tap-highlight-color: transparent;
     -moz-osx-font-smoothing: grayscale;
     text-shadow: 0px 0px calc(var(--shadowWidth) * 1px) var(--SmartThemeShadowColor);
 }
@@ -598,14 +597,6 @@ input[type='checkbox']:focus-visible {
 .mes_reasoning img:not(.mes_img) {
     max-width: 100%;
     max-height: var(--doc-height);
-}
-
-.mes_reasoning_details[data-state="thinking"] .mes_reasoning .text_segment,
-.mes_text .text_segment {
-    animation-name: fade-in;
-    animation-timing-function: ease-in-out;
-    /* Not using variables for duration as they are zeroed when reduced motion is enabled */
-    animation-duration: 300ms;
 }
 
 .mes .mes_timer,
@@ -2932,10 +2923,6 @@ select option:not(:checked) {
     color: var(--white70a);
 }
 
-select option[disabled]:not(:checked) {
-    color: var(--white30a);
-}
-
 /*#######################################################################*/
 
 #rm_api_block {
@@ -2953,7 +2940,6 @@ select option[disabled]:not(:checked) {
     text-align: center;
 }
 
-.menu_button[disabled],
 .menu_button.disabled {
     filter: brightness(75%) grayscale(1);
     opacity: 0.5;
@@ -3013,11 +2999,6 @@ select option[disabled]:not(:checked) {
 
 #api_url_text {
     display: block;
-}
-
-/* Fix font size difference in API Connections dropdowns - Issue #4599 */
-#custom_model_id {
-    font-size: calc(var(--mainFontSize) * 0.95);
 }
 
 .menu_button.api_button:hover {
@@ -3303,10 +3284,6 @@ input[type=search]:focus::-webkit-search-cancel-button {
     padding-right: 54px;
     margin-top: 3px;
     position: relative;
-}
-
-#rm_group_top_bar:not(:has(#rm_group_activation_strategy option[value="0"]:checked)) label:has(#rm_group_allow_self_responses) {
-    display: none;
 }
 
 .group_member .queue_position:not(:empty)::before {
@@ -3698,8 +3675,8 @@ grammarly-extension {
     min-width: calc(1.25em + 12px);
 }
 
-.menu_button:not(.disabled):not([disabled]):hover,
-.menu_button:not(.disabled):not([disabled]).active {
+.menu_button:not(.disabled):hover,
+.menu_button:not(.disabled).active {
     background-color: var(--white30a);
 }
 
@@ -5763,8 +5740,7 @@ body:not(.movingUI) .drawer-content.maximized {
 }
 
 .paginationjs-pages ul li a {
-    padding: 0.25em;
-    font-family: 'Font Awesome 6 Free';
+    padding: 0.05em 0.5em;
     text-decoration: none;
     color: var(--SmartThemeBodyColor);
     border: 1px solid var(--SmartThemeBorderColor);
@@ -6149,4 +6125,169 @@ body:not(.movingUI) .drawer-content.maximized {
 .info-block.error {
     border-color: var(--error-color, #e87f7f);
     background-color: rgba(241, 163, 163, 0.2);
+}
+
+/* 酒馆时间查询按钮样式 */
+#checkTavernTimeBtn {
+    background: linear-gradient(135deg, #4a90e2, #357abd);
+    border: none;
+    color: white;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#checkTavernTimeBtn:hover {
+    background: linear-gradient(135deg, #357abd, #2968a3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+#checkTavernTimeBtn:disabled {
+    background: linear-gradient(135deg, #666, #555);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#checkTavernTimeBtn i {
+    margin-right: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* 酒馆时间状态显示样式 */
+#tavernTimeStatus {
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, #333, #2a2a2a);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+#tavernTimeStatus:empty {
+    display: none !important;
+}
+
+/* 令牌额度查询样式 */
+#openai_usage_section {
+    background: var(--grey10);
+    border: 1px solid var(--grey30);
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+#openai_usage_section h5 {
+    margin: 0 0 10px 0;
+    color: var(--white100);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#refresh_usage_btn {
+    margin-left: 10px;
+    padding: 5px 8px;
+    background: var(--grey30);
+    border: 1px solid var(--grey50);
+    border-radius: 4px;
+    color: var(--white100);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#refresh_usage_btn:hover {
+    background: var(--grey50);
+    border-color: var(--grey70);
+}
+
+.usage-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.usage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--grey30);
+    border-radius: 6px;
+    border: 1px solid var(--grey50);
+}
+
+.usage-label {
+    color: var(--grey70);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.usage-value {
+    color: var(--white100);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+}
+
+.usage-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    border-radius: 6px;
+    color: #ff6b6b;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+.usage-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(0, 123, 255, 0.1);
+    border: 1px solid rgba(0, 123, 255, 0.3);
+    border-radius: 6px;
+    color: #4dabf7;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+.usage-loading .fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .usage-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .usage-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .usage-value {
+        text-align: left;
+    }
 }

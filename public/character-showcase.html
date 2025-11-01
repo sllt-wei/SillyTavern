@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SillyTavern - 角色卡分享</title>
+    <base href="/">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, viewport-fit=cover, initial-scale=1, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="darkreader-lock">
+    <meta name="robots" content="noindex, nofollow" />
+
+    <!-- 预加载关键资源 -->
+    <link rel="preload" as="style" href="style.css">
+    <link rel="manifest" crossorigin="use-credentials" href="manifest.json">
+
+    <!-- 字体样式 -->
+    <link href="webfonts/NotoSans/stylesheet.css" rel="stylesheet">
+    <link href="webfonts/NotoSansMono/stylesheet.css" rel="stylesheet">
+
+    <!-- 图标库 -->
+    <link href="css/fontawesome.min.css" rel="stylesheet">
+    <link href="css/solid.min.css" rel="stylesheet">
+    <link href="css/brands.min.css" rel="stylesheet">
+
+    <!-- 基础库样式 -->
+    <link href="css/jquery-ui.min.css" rel="stylesheet">
+    <link href="css/bright.min.css" rel="stylesheet">
+    <link href="css/cropper.min.css" rel="stylesheet">
+    <link href="css/toastr.min.css" rel="stylesheet">
+    <link href="css/select2.min.css" rel="stylesheet">
+
+    <!-- 图标链接 -->
+    <link rel="apple-touch-icon" sizes="57x57" href="img/apple-icon-57x57.png" />
+    <link rel="apple-touch-icon" sizes="72x72" href="img/apple-icon-72x72.png" />
+    <link rel="apple-touch-icon" sizes="114x114" href="img/apple-icon-114x114.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="img/apple-icon-144x144.png" />
+
+    <!-- 应用样式 -->
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="css/st-tailwind.css">
+    <link rel="stylesheet" type="text/css" href="css/rm-groups.css">
+    <link rel="stylesheet" type="text/css" href="css/group-avatars.css">
+    <link rel="stylesheet" type="text/css" href="css/toggle-dependent.css">
+    <link rel="stylesheet" type="text/css" href="css/world-info.css">
+    <link rel="stylesheet" type="text/css" href="css/extensions-panel.css">
+    <link rel="stylesheet" type="text/css" href="css/select2-overrides.css">
+    <link rel="stylesheet" type="text/css" href="css/mobile-styles.css">
+    <link rel="stylesheet" type="text/css" href="css/user.css">
+
+    <!-- 角色展示页面特有样式 -->
+    <link rel="stylesheet" type="text/css" href="css/character-showcase.css">
+    <link rel="stylesheet" type="text/css" href="css/character-modal.css">
+    <link rel="stylesheet" type="text/css" href="css/sidebar.css">
+
+    <!-- 网站图标 -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+
+<body class="no-blur">
+    <div id="preloader"></div>
+    <div id="bg_custom"></div>
+    <div id="bg1"></div>
+
+    <!-- 顶部导航栏 -->
+    <div class="navbar">
+        <a href="character-showcase.html" class="navbar-brand"><span class="navbar-brand-highlight">S</span>illy<span class="navbar-brand-highlight">T</span>avern</a>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="搜索角色..." />
+            <button id="search-btn"><i class="fa-solid fa-search"></i></button>
+            <button id="clear-search-btn" class="hidden"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div class="navbar-links">
+            <a href="#" id="loginBtn" class="navbar-link">登录</a>
+            <span id="toggle-sidebar-btn" class="toggle-sidebar-btn"><i class="fa-solid fa-tags"></i></span>
+        </div>
+    </div>
+
+    <!-- 标签侧边栏 -->
+    <div id="tags-sidebar" class="sidebar">
+        <div class="sidebar-header">
+            标签筛选 <span class="sidebar-close"><i class="fa-solid fa-times"></i></span>
+        </div>
+        <div class="columns-control">
+            <div class="columns-control-label">每行显示标签数量：</div>
+            <div class="columns-control-buttons">
+                <button class="column-btn" data-columns="1">1个</button>
+                <button class="column-btn active" data-columns="2">2个</button>
+                <button class="column-btn" data-columns="3">3个</button>
+            </div>
+        </div>
+        <div id="sidebar-tags-container">
+            <div class="sidebar-tags">
+                <!-- 标签将通过JavaScript动态添加 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 主要内容区域 -->
+    <div id="character-cards-container">
+        <!-- 加载指示器 -->
+        <div class="loading-indicator">
+            <i class="fa-solid fa-spinner fa-spin"></i> 正在加载角色卡...
+        </div>
+    </div>
+
+    <!-- 角色卡详情弹窗 -->
+    <div id="character-modal">
+        <div class="modal-content">
+            <!-- 添加关闭图标 -->
+            <div class="modal-close-icon" id="modal-close-icon">
+                <i class="fa-solid fa-times"></i>
+            </div>
+            <div class="modal-header">
+                <img id="modal-avatar" src="" alt="Character Avatar">
+                <div class="modal-header-info">
+                    <h2 id="modal-name"></h2>
+                </div>
+            </div>
+            <div class="modal-body">
+                <h3 id="description-header">角色描述 <span class="icon-container"><i class="fa-solid fa-chevron-down"></i></span></h3>
+                <div id="description-section" class="content-section">
+                    <p id="modal-description"></p>
+                </div>
+
+                <h3 id="personality-header">角色个性 <span class="icon-container"><i class="fa-solid fa-chevron-down"></i></span></h3>
+                <div id="personality-section" class="content-section">
+                    <p id="modal-personality"></p>
+                </div>
+
+                <h3 id="scenario-header">故事背景 <span class="icon-container"><i class="fa-solid fa-chevron-down"></i></span></h3>
+                <div id="scenario-section" class="content-section">
+                    <p id="modal-scenario"></p>
+                </div>
+
+                <h3 id="example-header">示例对话 <span class="icon-container"><i class="fa-solid fa-chevron-down"></i></span></h3>
+                <div id="example-section" class="content-section">
+                    <p id="modal-example-messages"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-close" id="close-modal-btn">关闭</button>
+                <button class="modal-btn modal-btn-import" id="import-character-btn">导入角色</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 库和脚本 -->
+    <script src="lib/jquery-3.5.1.min.js"></script>
+    <script src="lib/jquery-ui.min.js"></script>
+    <script src="lib/toastr.min.js"></script>
+
+    <!-- 自定义模块 -->
+    <script src="scripts/api-client.js"></script>
+    <script src="scripts/lazy-loading.js"></script>
+    <script src="scripts/character-showcase.js"></script>
+</body>
+
+</html>
