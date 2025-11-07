@@ -734,6 +734,7 @@ hr {
     margin: 0 auto;
     left: 0;
     right: 0;
+    top: 0;
     display: inline-block;
     height: var(--bottomFormBlockSize);
     position: absolute;
