@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { getRealIpFromHeader } from '../express-common.js';
+import { getIpAddress } from '../express-common.js';
 import { color, getConfigValue } from '../util.js';
 
 const knownIPs = new Set();
@@ -30,7 +30,7 @@ export function migrateAccessLog() {
  */
 export default function accessLoggerMiddleware() {
     return function (req, res, next) {
-        const clientIp = getRealIpFromHeader(req);
+        const clientIp = getIpAddress(req, true);
         const userAgent = req.headers['user-agent'];
 
         if (!knownIPs.has(clientIp)) {

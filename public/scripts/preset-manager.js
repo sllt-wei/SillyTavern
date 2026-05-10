@@ -19,12 +19,14 @@ import {
     this_chid,
 } from '../script.js';
 import { groups, selected_group } from './group-chats.js';
+import { t } from './i18n.js';
 import { instruct_presets } from './instruct-mode.js';
 import { kai_settings } from './kai-settings.js';
 import { convertNovelPreset } from './nai-settings.js';
-import { openai_settings, openai_setting_names, oai_settings } from './openai.js';
-import { Popup, POPUP_RESULT, POPUP_TYPE } from './popup.js';
+import { oai_settings, openai_setting_names, openai_settings } from './openai.js';
+import { POPUP_RESULT, POPUP_TYPE, Popup } from './popup.js';
 import { context_presets, getContextSettings, power_user } from './power-user.js';
+import { reasoning_templates } from './reasoning.js';
 import { SlashCommand } from './slash-commands/SlashCommand.js';
 import { ARGUMENT_TYPE, SlashCommandArgument } from './slash-commands/SlashCommandArgument.js';
 import { enumIcons } from './slash-commands/SlashCommandCommonEnumsProvider.js';
@@ -33,13 +35,11 @@ import { SlashCommandParser } from './slash-commands/SlashCommandParser.js';
 import { checkForSystemPromptInInstructTemplate, system_prompts } from './sysprompt.js';
 import { renderTemplateAsync } from './templates.js';
 import {
+    textgenerationwebui_settings as textgen_settings,
     textgenerationwebui_preset_names,
     textgenerationwebui_presets,
-    textgenerationwebui_settings as textgen_settings,
 } from './textgen-settings.js';
 import { download, ensurePlainObject, equalsIgnoreCaseAndAccents, getSanitizedFilename, parseJsonFile, waitUntilCondition } from './utils.js';
-import { t } from './i18n.js';
-import { reasoning_templates } from './reasoning.js';
 
 const presetManagers = {};
 
@@ -163,7 +163,7 @@ class PresetManager {
                 const manager = getPresetManager('textgenerationwebui');
                 const name = manager.getSelectedPresetName();
                 const data = manager.getPresetSettings(name);
-                data['name'] = name;
+                data.name = name;
                 return data;
             },
             setData: (data) => {
@@ -186,6 +186,23 @@ class PresetManager {
                 return manager.savePreset(name, data);
             },
             isValid: (data) => PresetManager.isPossiblyReasoningData(data),
+        },
+        'srw': {
+            name: 'Start Reply With',
+            getData: () => {
+                return {
+                    value: power_user.user_prompt_bias ?? '',
+                    show: power_user.show_user_prompt_bias ?? false,
+                };
+            },
+            setData: (data) => {
+                power_user.user_prompt_bias = data.value ?? '';
+                power_user.show_user_prompt_bias = data.show ?? false;
+                $('#start_reply_with').val(power_user.user_prompt_bias);
+                $('#chat-show-reply-prefix-checkbox').prop('checked', power_user.show_user_prompt_bias);
+                return saveSettingsDebounced();
+            },
+            isValid: (data) => PresetManager.isPossiblyStartReplyWithData(data),
         },
     };
 
@@ -212,6 +229,10 @@ class PresetManager {
     static isPossiblyReasoningData(data) {
         const reasoningProps = ['name', 'prefix', 'suffix', 'separator'];
         return data && reasoningProps.every(prop => Object.keys(data).includes(prop));
+    }
+
+    static isPossiblyStartReplyWithData(data) {
+        return data && 'value' in data && 'show' in data;
     }
 
     /**
@@ -313,7 +334,7 @@ class PresetManager {
      */
     static async performMasterExport() {
         const sectionNames = Object.entries(this.masterSections).reduce((acc, [key, section]) => {
-            acc[key] = { key: key, name: section.name, checked: key !== 'preset' };
+            acc[key] = { key: key, name: section.name, checked: !['preset', 'srw'].includes(key) };
             return acc;
         }, {});
         const html = $(await renderTemplateAsync('masterExport', { sections: sectionNames }));
@@ -397,8 +418,10 @@ class PresetManager {
 
     /**
      * Updates the preset select element with the current API presets.
+     * @param {object} [options] Options for saving the preset
+     * @param {boolean} [options.skipUpdate=false] If true, skips updating the preset list after saving.
      */
-    async updatePreset() {
+    async updatePreset(option = { skipUpdate: false }) {
         const selected = $(this.select).find('option:selected');
         console.log(selected);
 
@@ -408,7 +431,7 @@ class PresetManager {
         }
 
         const name = selected.text();
-        await this.savePreset(name);
+        await this.savePreset(name, null, option);
 
         const successToast = !this.isAdvancedFormatting() ? t`Preset updated` : t`Template updated`;
         toastr.success(successToast);
@@ -491,7 +514,6 @@ class PresetManager {
             console.error('Preset could not be renamed', error);
             throw new Error('Preset could not be renamed');
         }
-
     }
 
     /**
@@ -586,15 +608,13 @@ class PresetManager {
                 presets[preset_names.indexOf(name)] = preset;
                 $(this.select).find(`option[value="${name}"]`).prop('selected', true);
                 $(this.select).val(name).trigger('change');
-            }
-            else {
+            } else {
                 const value = preset_names[name];
                 presets[value] = preset;
                 $(this.select).find(`option[value="${value}"]`).prop('selected', true);
                 $(this.select).val(value).trigger('change');
             }
-        }
-        else {
+        } else {
             presets.push(preset);
             const value = presets.length - 1;
 
@@ -629,22 +649,22 @@ class PresetManager {
                     return textgen_settings;
                 case 'context': {
                     const context_preset = getContextSettings();
-                    context_preset['name'] = name || power_user.context.preset;
+                    context_preset.name = name || power_user.context.preset;
                     return context_preset;
                 }
                 case 'instruct': {
                     const instruct_preset = structuredClone(power_user.instruct);
-                    instruct_preset['name'] = name || power_user.instruct.preset;
+                    instruct_preset.name = name || power_user.instruct.preset;
                     return instruct_preset;
                 }
                 case 'sysprompt': {
                     const sysprompt_preset = structuredClone(power_user.sysprompt);
-                    sysprompt_preset['name'] = name || power_user.sysprompt.preset;
+                    sysprompt_preset.name = name || power_user.sysprompt.preset;
                     return sysprompt_preset;
                 }
                 case 'reasoning': {
                     const reasoning_preset = structuredClone(power_user.reasoning);
-                    reasoning_preset['name'] = name || power_user.reasoning.preset;
+                    reasoning_preset.name = name || power_user.reasoning.preset;
                     return reasoning_preset;
                 }
                 default:
@@ -678,6 +698,7 @@ class PresetManager {
             'ollama_model',
             'vllm_model',
             'aphrodite_model',
+            'llamacpp_model',
             'server_urls',
             'type',
             'custom_model',
@@ -688,6 +709,7 @@ class PresetManager {
             'featherless_model',
             'max_tokens_second',
             'openrouter_providers',
+            'openrouter_quantizations',
             'openrouter_allow_fallbacks',
             'tabby_model',
             'derived',
@@ -703,6 +725,7 @@ class PresetManager {
             'show_hidden',
             'max_additions',
         ];
+        /** @type {Record<string, any>} */
         const settings = Object.assign({}, getSettingsByApiId(this.apiId));
 
         for (const key of filteredKeys) {
@@ -712,8 +735,8 @@ class PresetManager {
         }
 
         if (!this.isAdvancedFormatting() && this.apiId !== 'openai') {
-            settings['genamt'] = amount_gen;
-            settings['max_length'] = max_context;
+            settings.genamt = amount_gen;
+            settings.max_length = max_context;
         }
 
         return settings;
@@ -1091,7 +1114,7 @@ export async function initPresetManager() {
         const fileName = file.name.replace('.json', '').replace('.settings', '');
         const data = await parseJsonFile(file);
         const name = data?.name ?? fileName;
-        data['name'] = name;
+        data.name = name;
 
         await presetManager.savePreset(name, data);
         const successToast = !presetManager.isAdvancedFormatting() ? t`Preset imported` : t`Template imported`;
