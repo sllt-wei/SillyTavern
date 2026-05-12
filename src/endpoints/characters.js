@@ -27,6 +27,7 @@ import { getChatInfo } from './chats.js';
 import { ByafParser } from '../byaf.js';
 import { getCacheBusterInstance } from '../middleware/cacheBuster.js';
 import { CharXParser, persistCharXAssets } from '../charx.js';
+import cacheBuster from '../middleware/cacheBuster.js';
 
 // Lazy initialization of memory cache
 let memoryCache = null;

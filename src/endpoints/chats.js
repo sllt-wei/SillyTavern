@@ -66,7 +66,9 @@ function backupChat(directory, name, data, backupPrefix = CHAT_BACKUPS_PREFIX) {
 
         tryWriteFileSync(backupFile, data);
         removeOldBackups(directory, `${backupPrefix}${name}_`);
+
         const maxTotalChatBackups = getMaxTotalChatBackups();
+        if (isNaN(maxTotalChatBackups) || maxTotalChatBackups < 0) {
             return;
         }
         removeOldBackups(directory, backupPrefix, maxTotalChatBackups);
@@ -472,7 +474,7 @@ class IntegrityMismatchError extends Error {
 export async function trySaveChat(chatData, filePath, skipIntegrityCheck = false, handle, cardName, backupDirectory) {
     const jsonlData = chatData?.map(m => JSON.stringify(m)).join('\n');
 
-    const doIntegrityCheck = (checkIntegrity && !skipIntegrityCheck);
+    const doIntegrityCheck = (isCheckIntegrityEnabled() && !skipIntegrityCheck);
     const chatIntegritySlug = doIntegrityCheck ? chatData?.[0]?.chat_metadata?.integrity : undefined;
 
     if (chatIntegritySlug && !await checkChatIntegrity(filePath, chatIntegritySlug)) {
@@ -491,6 +493,15 @@ router.post('/save', validateAvatarUrlMiddleware, async function (request, respo
         const chatFilePath = path.join(request.user.directories.chats, cardName, sanitize(chatFileName));
         if (!isPathUnderParent(request.user.directories.chats, chatFilePath)) {
             return response.sendStatus(400);
+        }
+
+        if (isCheckIntegrityEnabled() && !request.body.force) {
+            const integritySlug = chatData?.[0]?.chat_metadata?.integrity;
+            const isIntact = await checkChatIntegrity(chatFilePath, integritySlug);
+            if (!isIntact) {
+                console.error(`Chat integrity check failed for ${chatFilePath}`);
+                return response.status(400).send({ error: 'integrity' });
+            }
         }
 
         if (Array.isArray(chatData)) {

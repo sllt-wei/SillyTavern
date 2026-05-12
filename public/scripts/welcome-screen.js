@@ -820,6 +820,7 @@ export async function openPermanentAssistantChat({ tryCreate = true, created = f
     const avatar = getPermanentAssistantAvatar();
     const characterId = characters.findIndex(x => x.avatar === avatar);
     if (characterId === -1) {
+        // 禁用自动创建 Assistant 角色卡
         console.warn(`Character not found for avatar ID: ${avatar}. Auto-creation disabled.`);
         return;
     }

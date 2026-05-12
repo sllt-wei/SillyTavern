@@ -3822,6 +3822,13 @@
                             <div data-for="api_key_custom" class="neutral_warning" data-i18n="For privacy reasons, your API key will be hidden after you click 'Connect'.">
                                 For privacy reasons, your API key will be hidden after you click 'Connect'.
                             </div>
+                            <div class="flex-container marginTop5">
+                                <div id="custom_check_quota_btn" class="menu_button menu_button_icon" title="查询 NewAPI / OneAPI 密钥额度" data-i18n="[title]Query API key quota (NewAPI / OneAPI compatible)">
+                                    <i class="fa-solid fa-coins"></i>
+                                    <span data-i18n="Check Quota">查询额度</span>
+                                </div>
+                            </div>
+                            <div id="custom_quota_status" style="margin-top: 8px; display: none;"></div>
                             <h4 data-i18n="Enter a Model ID">Enter a Model ID</h4>
                             <div class="flex-container">
                                 <input list="model_custom_select_fill" id="custom_model_id" class="text_pole wide100p" value="" autocomplete="off" data-i18n="[placeholder]Example: gpt-4o" placeholder="Example: gpt-4o">
@@ -6354,6 +6361,7 @@
                         <div id="charListFixedTop">
                             <div id="rm_button_bar">
                                 <div id="rm_button_create" title="Create New Character" data-i18n="[title]Create New Character" class="menu_button fa-solid fa-user-plus"></div>
+                                <a href="/character-showcase.html" id="rm_button_showcase" title="Character Gallery" data-i18n="[title]Character Gallery" class="menu_button fa-solid fa-images"></a>
                                 <div id="character_import_button" title="Import Character from File" data-i18n="[title]Import Character from File" class="menu_button fa-solid fa-file-import"></div>
                                 <div id="external_import_button" title="Import content from external URL" data-i18n="[title]Import content from external URL" class="menu_button fa-solid fa-cloud-arrow-down"></div>
                                 <div id="rm_button_group_chats" title="Create New Chat Group" data-i18n="[title]Create New Chat Group" class="menu_button fa-solid fa-users-gear"></div>

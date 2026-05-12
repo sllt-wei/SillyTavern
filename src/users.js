@@ -978,12 +978,14 @@ async function updateUserActivity(handle) {
         if (user) {
             const now = Date.now();
 
+            // Only update if interval has passed to avoid frequent writes
             if (!user.lastActivity || now - user.lastActivity > ACTIVITY_UPDATE_INTERVAL) {
                 user.lastActivity = now;
                 await storage.setItem(toKey(handle), user);
                 console.debug(`Updated activity for user: ${handle}`);
             }
 
+            // Always mark as online
             ONLINE_USERS.add(handle);
         }
     } catch (error) {
@@ -1112,55 +1114,6 @@ export async function setUserDataMiddleware(request, response, next) {
         request.user = null;
         return next();
     }
-
-    if (!request.session) {
-        console.error('Session not available');
-        return response.sendStatus(500);
-    }
-
-    let handle = request.session?.handle;
-
-    if (!handle) {
-        return next();
-    }
-
-    /** @type {User} */
-    const user = await storage.getItem(toKey(handle));
-
-    if (!user) {
-        console.error('User not found:', handle);
-        return next();
-    }
-
-    if (!user.enabled) {
-        console.error('User is disabled:', handle);
-        return next();
-    }
-
-    if (Object.hasOwn(request.session, 'version')) {
-        if (request.session.version !== getAccountVersion(user)) {
-            console.warn('User data has changed since the session was created. Invalidating session for user:', handle);
-            request.session.handle = null;
-            request.session.csrfToken = null;
-            request.session.version = null;
-            request.session = null;
-            return response.sendStatus(403);
-        }
-    } else {
-        request.session.version = getAccountVersion(user);
-    }
-
-    const directories = getUserDirectories(handle);
-    request.user = {
-        profile: user,
-        directories: directories,
-    };
-
-    if (request.method === 'GET' && request.path === '/') {
-        request.session.touch = Date.now();
-    }
-
-    return next();
 }
 
 /**

@@ -102,8 +102,12 @@ router.post('/login', async (request, response) => {
         await loginLimiter.delete(ip);
         request.session.handle = user.handle;
         request.session.version = getAccountVersion(user);
+
+        // 使用新的会话管理器添加用户
         addOnlineUser(user.handle);
+        // 触发用户登录事件
         serverEvents.emit(EVENT_NAMES.USER_LOGIN, user.handle);
+
         console.info('Login successful:', user.handle, 'from', ip, 'at', new Date().toLocaleString());
         return response.json({ handle: user.handle });
     } catch (error) {

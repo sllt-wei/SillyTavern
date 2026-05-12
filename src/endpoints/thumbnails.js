@@ -17,9 +17,9 @@ export const apiRouter = express.Router();
 export const SKIPPED_EXTENSIONS = new Set(['.apng', '.mp4', '.webm', '.avi', '.mkv', '.flv', '.gif']);
 export const ALLOWED_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tif', '.tiff', '.apng']);
 
-const isThumbnailsEnabled = () => !!getConfigValue('thumbnails.enabled', true, 'boolean');
-const getThumbnailQuality = () => Math.min(100, Math.max(1, parseInt(getConfigValue('thumbnails.quality', 95, 'number'))));
-const isPngFormat = () => String(getConfigValue('thumbnails.format', 'jpg')).toLowerCase().trim() === 'png';
+const thumbnailsEnabled = !!getConfigValue('thumbnails.enabled', true, 'boolean');
+const quality = Math.min(100, Math.max(1, parseInt(getConfigValue('thumbnails.quality', 95, 'number'))));
+const pngFormat = String(getConfigValue('thumbnails.format', 'jpg')).toLowerCase().trim() === 'png';
 
 /**
  * @typedef {'bg' | 'avatar' | 'persona'} ThumbnailType
@@ -228,9 +228,9 @@ async function processSingleImage(file, originalFolder, thumbnailFolder, type) {
             thumbImage.cover({ w: configWidth, h: configHeight });
         }
 
-        const buffer = isPngFormat()
+        const buffer = pngFormat
             ? await thumbImage.getBuffer(JimpMime.png)
-            : await thumbImage.getBuffer(JimpMime.jpeg, { quality: getThumbnailQuality(), jpegColorSpace: 'ycbcr' });
+            : await thumbImage.getBuffer(JimpMime.jpeg, { quality: quality, jpegColorSpace: 'ycbcr' });
 
         writeFileAtomicSync(pathToCachedFile, buffer);
 
@@ -265,7 +265,7 @@ publicRouter.get('/', async function (request, response) {
             return response.sendFile(pathToOriginalFile);
         };
 
-        if (!isThumbnailsEnabled()) {
+        if (!thumbnailsEnabled) {
             return serveOriginal();
         }
 

@@ -9,7 +9,6 @@ import dns from 'node:dns';
 import process from 'node:process';
 import http from 'node:http';
 import https from 'node:https';
-import { fileURLToPath } from 'node:url';
 
 import cors from 'cors';
 import { csrfSync } from 'csrf-sync';
@@ -65,6 +64,7 @@ import {
     safeReadFileSync,
     setupLogLevel,
     setWindowTitle,
+    getConfigValue,
 } from './util.js';
 import { UPLOADS_DIRECTORY } from './constants.js';
 
@@ -78,16 +78,12 @@ import { redirectDeprecatedEndpoints, ServerStartup, setupPrivateEndpoints } fro
 import { diskCache } from './endpoints/characters.js';
 import { migrateFlatSecrets } from './endpoints/secrets.js';
 import { migrateGroupChatsMetadataFormat } from './endpoints/groups.js';
+import { serverDirectory } from './server-directory.js';
 
 // Unrestrict console logs display limit
 util.inspect.defaultOptions.maxArrayLength = null;
 util.inspect.defaultOptions.maxStringLength = null;
 util.inspect.defaultOptions.depth = 4;
-
-// Set a working directory for the server
-const serverDirectory = import.meta.dirname ?? path.dirname(fileURLToPath(import.meta.url));
-console.log(`Node version: ${process.version}. Running in ${process.env.NODE_ENV} environment. Server directory: ${serverDirectory}`);
-process.chdir(serverDirectory);
 
 // Work around a node v20.0.0, v20.1.0, and v20.2.0 bug. The issue was fixed in v20.3.0.
 // https://github.com/nodejs/node/issues/47822#issuecomment-1564708870
@@ -226,7 +222,7 @@ if (!cliArgs.disableCsrf) {
     // 自定义CSRF中间件，排除特定路由
     const customCsrfProtection = (req, res, next) => {
         // 特定路由跳过CSRF验证
-        if (req.path === '/api/renew' || req.path === '/api/validate-card') {
+        if (req.path === '/api/renew' || req.path === '/api/validate-card' || req.path === '/api/characters/admin-showcase') {
             return next();
         }
         // 其他路由正常进行CSRF验证
@@ -362,7 +358,7 @@ app.post('/api/validate-card', (req, res) => {
 
 // Everything below this line requires authentication
 app.use(requireLoginMiddleware);
-app.post('/api/ping', (request, response) => {
+app.all('/api/ping', (request, response) => {
     if (request.query.extend && request.session && request.session.handle) {
         request.session.touch = Date.now();
 
@@ -431,10 +427,59 @@ async function preSetupTasks() {
         console.log(color.blue('Initializing session manager...'));
         initSessionManager();
 
+        const directories = await getUserDirectoriesList();
+        await migrateGroupChatsMetadataFormat(directories);
+        await checkForNewContent(directories);
+        await diskCache.verify(directories);
+        migrateFlatSecrets(directories);
+
+        await settingsInit();
+        await statsInit();
+
         // 加载服务器插件
         console.log(color.blue('Loading server plugins...'));
-        const pluginsPath = path.join(process.cwd(), 'plugins');
-        await loadPlugins(app, pluginsPath);
+        const pluginsDirectory = path.join(serverDirectory, 'plugins');
+        const cleanupPlugins = await loadPlugins(app, pluginsDirectory);
+        const consoleTitle = process.title;
+
+        let isExiting = false;
+        const exitProcess = async () => {
+            if (isExiting) return;
+            isExiting = true;
+            await statsOnExit();
+            if (typeof cleanupPlugins === 'function') {
+                await cleanupPlugins();
+            }
+            diskCache.dispose();
+            setWindowTitle(consoleTitle);
+            process.exit();
+        };
+
+        // Set up event listeners for a graceful shutdown
+        process.on('SIGINT', exitProcess);
+        process.on('SIGTERM', exitProcess);
+        process.on('uncaughtException', (err) => {
+            console.error('Uncaught exception:', err);
+            exitProcess();
+        });
+
+        // Add private request filter.
+        const requestFilterOptions = {
+            listen: cliArgs.listen,
+            enabled: !!getConfigValue('privateAddressWhitelist.enabled', false, 'boolean'),
+            privateAddressWhitelist: getConfigValue('privateAddressWhitelist.allowedRanges', ['127.0.0.0/8', '::1/128']),
+            logBlocked: !!getConfigValue('privateAddressWhitelist.log.blockedRequests', true, 'boolean'),
+            logAllowed: !!getConfigValue('privateAddressWhitelist.log.allowedRequests', false, 'boolean'),
+            allowUnresolvedHosts: !!getConfigValue('privateAddressWhitelist.allowUnresolvedHosts', false, 'boolean'),
+            enableKeepAlive: cliArgs.enableKeepAlive,
+        };
+        initPrivateRequestFilter(requestFilterOptions);
+
+        // Add request proxy.
+        initRequestProxy({ enabled: cliArgs.requestProxyEnabled, url: cliArgs.requestProxyUrl, bypass: cliArgs.requestProxyBypass, enableKeepAlive: cliArgs.enableKeepAlive, privateRequestFilterEnabled: requestFilterOptions.enabled });
+
+        // Wait for frontend libs to compile
+        await webpackMiddleware.runWebpackCompiler({ pruneCache: true });
 
         console.log(color.yellow('Pre-setup tasks complete'));
         return true;
@@ -442,57 +487,6 @@ async function preSetupTasks() {
         console.error('Pre-setup tasks failed:', error);
         return false;
     }
-    console.log();
-
-    const directories = await getUserDirectoriesList();
-    await migrateGroupChatsMetadataFormat(directories);
-    await checkForNewContent(directories);
-    await diskCache.verify(directories);
-    migrateFlatSecrets(directories);
-    cleanUploads();
-    migrateAccessLog();
-
-    await settingsInit();
-    await statsInit();
-
-    const pluginsDirectory = path.join(serverDirectory, 'plugins');
-    const cleanupPlugins = await loadPlugins(app, pluginsDirectory);
-    const consoleTitle = process.title;
-
-    let isExiting = false;
-    const exitProcess = async () => {
-        if (isExiting) return;
-        isExiting = true;
-        await statsOnExit();
-        if (typeof cleanupPlugins === 'function') {
-            await cleanupPlugins();
-        }
-        diskCache.dispose();
-        setWindowTitle(consoleTitle);
-        process.exit();
-    };
-
-    process.on('SIGINT', exitProcess);
-    process.on('SIGTERM', exitProcess);
-    process.on('uncaughtException', (err) => {
-        console.error('Uncaught exception:', err);
-        exitProcess();
-    });
-
-    const requestFilterOptions = {
-        listen: cliArgs.listen,
-        enabled: !!getConfigValue('privateAddressWhitelist.enabled', false, 'boolean'),
-        privateAddressWhitelist: getConfigValue('privateAddressWhitelist.allowedRanges', ['127.0.0.0/8', '::1/128']),
-        logBlocked: !!getConfigValue('privateAddressWhitelist.log.blockedRequests', true, 'boolean'),
-        logAllowed: !!getConfigValue('privateAddressWhitelist.log.allowedRequests', false, 'boolean'),
-        allowUnresolvedHosts: !!getConfigValue('privateAddressWhitelist.allowUnresolvedHosts', false, 'boolean'),
-        enableKeepAlive: cliArgs.enableKeepAlive,
-    };
-    initPrivateRequestFilter(requestFilterOptions);
-
-    initRequestProxy({ enabled: cliArgs.requestProxyEnabled, url: cliArgs.requestProxyUrl, bypass: cliArgs.requestProxyBypass, enableKeepAlive: cliArgs.enableKeepAlive, privateRequestFilterEnabled: requestFilterOptions.enabled });
-
-    await webpackMiddleware.runWebpackCompiler({ pruneCache: true });
 }
 
 /**
@@ -501,10 +495,10 @@ async function preSetupTasks() {
  * @returns {Promise<void>}
  */
 async function postSetupTasks(result) {
-    const autorunHostname = await cliArgs.getAutorunHostname(result);
-    const autorunUrl = cliArgs.getAutorunUrl(autorunHostname);
+    const autorunHostname = await cliArgs.getBrowserLaunchHostname(result);
+    const autorunUrl = cliArgs.getBrowserLaunchUrl(autorunHostname);
 
-    if (cliArgs.autorun) {
+    if (cliArgs.browserLaunchEnabled) {
         try {
             console.log('Launching in a browser...');
             await open(autorunUrl.toString());

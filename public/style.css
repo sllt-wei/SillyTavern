@@ -6530,13 +6530,13 @@ body:not(.movingUI) .drawer-content.maximized {
     .usage-info {
         grid-template-columns: 1fr;
     }
-    
+
     .usage-item {
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
     }
-    
+
     .usage-value {
         text-align: left;
     }

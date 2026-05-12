@@ -45,8 +45,6 @@ export default async function getWhitelistMiddleware() {
     let whitelist = getConfigValue('whitelist', []);
 
     if (fs.existsSync(whitelistPath)) {
-        console.warn(color.yellow('whitelist.txt is deprecated and will be removed in a future release.'));
-        console.warn(color.yellow('Please migrate its contents to the whitelist field in config.yaml. See the documentation for more details.'));
         try {
             let whitelistTxt = fs.readFileSync(whitelistPath, 'utf-8');
             whitelist = whitelistTxt.split('\n').filter(ip => ip).map(ip => ip.trim());
@@ -54,8 +52,6 @@ export default async function getWhitelistMiddleware() {
             // Ignore errors that may occur when reading the whitelist (e.g. permissions)
         }
     }
-
-    whitelist = filterValidIpPatterns(whitelist, (entry, message) => `${color.red('Warning')}: Ignoring invalid whitelist entry ${color.yellow(entry)} - ${message}`);
 
     const forbiddenWebpage = Handlebars.compile(
         safeReadFileSync(path.join(globalThis.DATA_ROOT, '_errors', 'forbidden-by-whitelist.html')) ?? '',

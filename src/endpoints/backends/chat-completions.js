@@ -2894,3 +2894,55 @@ router.post('/process', async function (request, response) {
         return response.sendStatus(500);
     }
 });
+
+router.post('/quota', async function (request, response) {
+    try {
+        const customUrl = String(request.body.custom_url || '').trim();
+        const apiKey = String(request.body.api_key || readSecret(request.user.directories, SECRET_KEYS.CUSTOM) || '').trim();
+
+        if (!customUrl) {
+            return response.status(400).send({ error: 'Custom endpoint URL is required.' });
+        }
+        if (!apiKey) {
+            return response.status(400).send({ error: 'API key is required.' });
+        }
+
+        const baseUrl = trimTrailingSlash(customUrl).replace(/\/v1$/, '');
+        const subscriptionUrl = urlJoin(baseUrl, '/dashboard/billing/subscription');
+        const now = new Date();
+        const start = new Date(now);
+        start.setDate(start.getDate() - 99);
+        const fmt = (d) => d.toISOString().slice(0, 10);
+        const usageUrl = `${urlJoin(baseUrl, '/dashboard/billing/usage')}?start_date=${fmt(start)}&end_date=${fmt(now)}`;
+        const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+
+        const [subRes, useRes] = await Promise.all([
+            fetch(subscriptionUrl, { headers }).catch(err => ({ ok: false, status: 0, statusText: err.message })),
+            fetch(usageUrl, { headers }).catch(err => ({ ok: false, status: 0, statusText: err.message })),
+        ]);
+
+        if (!subRes.ok) {
+            const errText = await (subRes.text?.() ?? Promise.resolve(subRes.statusText));
+            return response.status(502).send({ error: `Subscription query failed (${subRes.status}): ${errText}` });
+        }
+
+        const subscription = await subRes.json();
+        const usage = useRes.ok ? await useRes.json() : null;
+
+        const totalGranted = Number(subscription.hard_limit_usd ?? subscription.system_hard_limit_usd ?? 0);
+        const totalUsed = Number(usage?.total_usage ?? 0) / 100;
+        const balance = Math.max(0, totalGranted - totalUsed);
+
+        return response.send({
+            total_granted: totalGranted,
+            total_used: totalUsed,
+            balance: balance,
+            currency: 'USD',
+            raw_subscription: subscription,
+            raw_usage: usage,
+        });
+    } catch (error) {
+        console.error('Quota query failed:', error);
+        return response.status(500).send({ error: error.message || 'Quota query failed.' });
+    }
+});

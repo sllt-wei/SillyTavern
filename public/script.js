@@ -506,10 +506,6 @@ async function getClientVersion() {
         displayVersion = `SillyTavern ${data.pkgVersion}`;
         currentVersion = data.pkgVersion;
 
-        if (data.gitRevision && data.gitBranch) {
-            displayVersion += ` '${data.gitBranch}' (${data.gitRevision})`;
-        }
-
         $('#version_display').text(displayVersion);
         $('#version_display_welcome').text(displayVersion);
     } catch (err) {
@@ -12527,6 +12523,67 @@ jQuery(async function () {
 
     // Added here to prevent execution before script.js is loaded and get rid of quirky timeouts
     await firstLoadInit();
+
+    // 酒馆时间查询功能
+    $(document).on('click', '#checkTavernTimeBtn', async function () {
+        const statusElem = $('#tavernTimeStatus');
+        const button = $(this);
+
+        statusElem.text('正在查询账户信息...').show();
+        statusElem.css({
+            'background-color': '#333',
+            'color': '#e0e0e0',
+            'border': '1px solid #555',
+        });
+        button.prop('disabled', true);
+
+        try {
+            const response = await fetch('/api/plugins/api-share/api/user-expiry');
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    statusElem.text('请先登录账户').css({
+                        'background-color': '#3b1e1e',
+                        'color': '#f44336',
+                    });
+                    return;
+                }
+                throw new Error(`服务器返回状态码: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.hasExpiry) {
+                const expiryDate = new Date(data.expiry);
+                const formattedDate = expiryDate.toLocaleString('zh-CN');
+
+                if (data.isExpired) {
+                    statusElem.text(`账户已于 ${formattedDate} 过期`).css({
+                        'background-color': '#3b1e1e',
+                        'color': '#f44336',
+                    });
+                } else {
+                    statusElem.text(`账户到期时间: ${formattedDate} (剩余 ${data.daysRemaining} 天)`).css({
+                        'background-color': '#1e3b2f',
+                        'color': '#4caf50',
+                    });
+                }
+            } else {
+                statusElem.text('账户无到期时间限制').css({
+                    'background-color': '#1e3b2f',
+                    'color': '#4caf50',
+                });
+            }
+        } catch (error) {
+            console.error('查询到期时间失败:', error);
+            statusElem.text('查询失败: ' + error.message).css({
+                'background-color': '#3b1e1e',
+                'color': '#f44336',
+            });
+        } finally {
+            button.prop('disabled', false);
+        }
+    });
 
     window.addEventListener('beforeunload', (e) => {
         if (isChatSaving || this_edit_mes_id >= 0) {

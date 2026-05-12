@@ -6943,6 +6943,46 @@ export function initOpenAI() {
         saveSettingsDebounced();
     });
 
+    $('#custom_check_quota_btn').on('click', async function () {
+        const statusElem = $('#custom_quota_status');
+        const button = $(this);
+        const customUrl = String($('#custom_api_url_text').val() || '').trim();
+        const apiKey = String($('#api_key_custom').val() || '').trim();
+
+        if (!customUrl) {
+            statusElem.text('请先填写自定义端点 URL').css({ 'background-color': '#3b1e1e', 'color': '#f44336', 'padding': '8px', 'border-radius': '4px' }).show();
+            return;
+        }
+
+        statusElem.text('正在查询额度...').css({ 'background-color': '#333', 'color': '#e0e0e0', 'padding': '8px', 'border-radius': '4px' }).show();
+        button.addClass('disabled').css('pointer-events', 'none');
+
+        try {
+            const response = await fetch('/api/backends/chat-completions/quota', {
+                method: 'POST',
+                headers: getRequestHeaders(),
+                body: JSON.stringify({ custom_url: customUrl, api_key: apiKey }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+                throw new Error(errData.error || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const total = Number(data.total_granted).toFixed(4);
+            const used = Number(data.total_used).toFixed(4);
+            const balance = Number(data.balance).toFixed(4);
+            statusElem.html(`总额度: $${total} | 已用: $${used} | <b>余额: $${balance}</b>`)
+                .css({ 'background-color': '#1e3b2f', 'color': '#4caf50', 'padding': '8px', 'border-radius': '4px' });
+        } catch (error) {
+            console.error('查询额度失败:', error);
+            statusElem.text('查询失败: ' + error.message).css({ 'background-color': '#3b1e1e', 'color': '#f44336', 'padding': '8px', 'border-radius': '4px' });
+        } finally {
+            button.removeClass('disabled').css('pointer-events', '');
+        }
+    });
+
     $('#custom_model_id').on('input', function () {
         oai_settings.custom_model = String($(this).val());
         saveSettingsDebounced();
