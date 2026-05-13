@@ -12524,6 +12524,41 @@ jQuery(async function () {
     // Added here to prevent execution before script.js is loaded and get rid of quirky timeouts
     await firstLoadInit();
 
+    // 通知公告弹窗
+    (async function checkAnnouncements() {
+        try {
+            const response = await fetch('/api/plugins/announcements/unread');
+            if (!response.ok) return;
+            const data = await response.json();
+            const anns = data.announcements || [];
+            if (anns.length === 0) return;
+
+            const html = anns.map(a => {
+                const badge = a.pinned ? '<span style="display:inline-block;padding:2px 6px;background:#ffb74d;color:#000;border-radius:3px;font-size:11px;margin-right:6px;">置顶</span>' : '';
+                const time = a.createdAt ? new Date(a.createdAt).toLocaleString('zh-CN') : '';
+                const bodyHtml = DOMPurify.sanitize(converter.makeHtml(a.content || ''));
+                return `
+                    <div style="background:#222;border-radius:6px;padding:12px 14px;margin-bottom:12px;border-left:4px solid ${a.pinned ? '#ffb74d' : '#5b5bff'};">
+                        <div style="font-size:16px;font-weight:600;color:#e0e0e0;margin-bottom:4px;">${badge}${$('<div/>').text(a.title).html()}</div>
+                        <div style="font-size:11px;color:#888;margin-bottom:8px;">发布于: ${time}</div>
+                        <div class="announcement-content" style="font-size:14px;color:#d0d0d0;line-height:1.5;">${bodyHtml}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const container = `<div style="max-height:60vh;overflow-y:auto;"><h3 style="text-align:center;color:#9e9eff;margin-top:0;">通知公告</h3>${html}</div>`;
+            await callGenericPopup(container, POPUP_TYPE.TEXT, '', { wide: true, okButton: '我已阅读', cancelButton: false, allowVerticalScrolling: true });
+
+            await fetch('/api/plugins/announcements/mark-read', {
+                method: 'POST',
+                headers: getRequestHeaders(),
+                body: JSON.stringify({ ids: anns.map(a => a.id) }),
+            });
+        } catch (err) {
+            console.error('加载公告失败:', err);
+        }
+    })();
+
     // 酒馆时间查询功能
     $(document).on('click', '#checkTavernTimeBtn', async function () {
         const statusElem = $('#tavernTimeStatus');
